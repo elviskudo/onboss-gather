@@ -1,3 +1,4 @@
+import { videoSubscriptions } from "./mediaPolicy";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownLeft,
@@ -179,6 +180,18 @@ export default function App() {
   const participants = connected ? room.people : [self];
   const inMeeting = own?.meeting === true;
   const meetingPeople = room.people.filter((p) => p.meeting);
+  const visibleVideoIds = videoSubscriptions(
+    { ...self, camera: media.camera },
+    room.people,
+  );
+  const meetingTiles = meetingPeople
+    .filter((p) => p.id !== self.id)
+    .sort(
+      (a, b) =>
+        Number(visibleVideoIds.includes(b.id)) -
+          Number(visibleVideoIds.includes(a.id)) || a.id.localeCompare(b.id),
+    )
+    .slice(0, 3);
   const nearby = room.people.filter(
     (p) =>
       p.id !== room.id &&
@@ -225,10 +238,14 @@ export default function App() {
       localStorage.setItem("hallstatt-name", n);
       localStorage.setItem("hallstatt-color", draftColor);
     } catch {}
-    if (!STATIC_PREVIEW) room.join(n, draftColor, roomId);
-    else
+    if (!STATIC_PREVIEW) {
+      media.stop();
+      setPlace(0);
+      world.current?.go(3.5, 9);
+      room.join(n, draftColor, roomId);
+    } else
       notify(
-        "Identity saved. This hosted preview is for exploring; live rooms require the Cloudflare backend.",
+        "Your avatar is ready. This preview lets you explore on your own.",
       );
     setModal(null);
     setWelcome(false);
@@ -428,7 +445,9 @@ export default function App() {
                   <p>
                     {connected
                       ? "Say something to everyone in the village."
-                      : "Enter the village to join the conversation."}
+                      : STATIC_PREVIEW
+                        ? "Conversations are available in live rooms."
+                        : "Enter the village to join the conversation."}
                   </p>
                 </div>
               )}
@@ -458,13 +477,14 @@ export default function App() {
               }}
             >
               <input
+                disabled={STATIC_PREVIEW}
                 aria-label="Message the village"
                 placeholder="Say hello…"
                 maxLength={500}
                 value={chat}
                 onChange={(e) => setChat(e.target.value)}
               />
-              <button aria-label="Send message">
+              <button aria-label="Send message" disabled={STATIC_PREVIEW}>
                 <Send size={17} />
               </button>
             </form>
@@ -535,7 +555,7 @@ export default function App() {
             <strong>Hallstatt village</strong>
             <span className="private-tag">
               <Users size={11} />
-              Shared space
+              {STATIC_PREVIEW ? "Private preview" : "Shared space"}
             </span>
           </div>
           <div className="top-actions">
@@ -685,6 +705,39 @@ export default function App() {
             </span>
             <span>48°33′43.0″N &nbsp; 13°38′59.0″E</span>
           </div>
+          {!inMeeting &&
+            connected &&
+            (media.camera || visibleVideoIds.length > 0) && (
+              <div className="meeting-overlay proximity-overlay">
+                <div className="meeting-top">
+                  <span className="live-dot" />
+                  <strong>A nearby hello</strong>
+                  <small>Within earshot</small>
+                </div>
+                <div className="video-grid">
+                  {media.camera && (
+                    <MediaTile stream={media.stream} name={name} muted />
+                  )}
+                  {visibleVideoIds.map((pid) => {
+                    const p = room.people.find((p) => p.id === pid);
+                    return p ? (
+                      <MediaTile
+                        key={pid}
+                        stream={media.remote[pid] || null}
+                        name={p.name}
+                        muted
+                      />
+                    ) : null;
+                  })}
+                </div>
+                <div className="meeting-footer">
+                  <span>
+                    <Headphones size={13} />
+                    Audio fades as you walk away.
+                  </span>
+                </div>
+              </div>
+            )}
           {meeting && connected && (
             <div className="meeting-overlay">
               <div className="meeting-top">
@@ -705,17 +758,18 @@ export default function App() {
                   name={name}
                   muted
                 />
-                {meetingPeople
-                  .filter((p) => p.id !== self.id)
-                  .slice(0, 3)
-                  .map((p) => (
-                    <MediaTile
-                      key={p.id}
-                      stream={p.camera ? media.remote[p.id] || null : null}
-                      name={p.name}
-                      muted
-                    />
-                  ))}
+                {meetingTiles.map((p) => (
+                  <MediaTile
+                    key={p.id}
+                    stream={
+                      p.camera && visibleVideoIds.includes(p.id)
+                        ? media.remote[p.id] || null
+                        : null
+                    }
+                    name={p.name}
+                    muted
+                  />
+                ))}
               </div>
               <div className="meeting-footer">
                 <span>
@@ -760,6 +814,8 @@ export default function App() {
           <div className="call-controls">
             <button
               className={"control-button " + (media.mic ? "enabled" : "")}
+              disabled={STATIC_PREVIEW}
+              title={STATIC_PREVIEW ? "Available in live rooms" : undefined}
               aria-label={media.mic ? "Mute microphone" : "Unmute microphone"}
               onClick={() => media.toggle("audio")}
             >
@@ -768,6 +824,8 @@ export default function App() {
             </button>
             <button
               className={"control-button " + (media.camera ? "enabled" : "")}
+              disabled={STATIC_PREVIEW}
+              title={STATIC_PREVIEW ? "Available in live rooms" : undefined}
               aria-label={media.camera ? "Turn camera off" : "Turn camera on"}
               onClick={() => media.toggle("video")}
             >
@@ -811,7 +869,8 @@ export default function App() {
               </button>
             ) : (
               <button className="enter-button" onClick={() => setModal("join")}>
-                Enter village <ArrowRight size={16} />
+                {STATIC_PREVIEW ? "Customize avatar" : "Enter village"}{" "}
+                <ArrowRight size={16} />
               </button>
             )}
           </div>
@@ -940,7 +999,7 @@ export default function App() {
                 <h2 id="modal-title">Come as you are.</h2>
                 <p>
                   {STATIC_PREVIEW
-                    ? "Explore the village with your own name and color. Live social features are available in the full Cloudflare deployment."
+                    ? "Explore with your own name and color. This preview is a quiet, solo visit."
                     : "A name, a little color, and you’re on your way."}
                 </p>
                 <form onSubmit={join}>
@@ -1007,7 +1066,7 @@ export default function App() {
                 <h2 id="modal-title">Save them a spot.</h2>
                 <p>
                   {STATIC_PREVIEW
-                    ? "This is a private exploration preview. Deploy the included Cloudflare backend to invite people into live rooms."
+                    ? "This private preview is yours to explore. Live room invitations are available in the full version."
                     : "Send a little invitation to your little escape."}
                 </p>
                 <label className="input-label" htmlFor="invite-link">
@@ -1031,8 +1090,9 @@ export default function App() {
                 <div className="modal-note">
                   <Info size={16} />
                   <span>
-                    Anyone with this link can enter. Share it with people you
-                    trust. Up to 20 visitors per village.
+                    {STATIC_PREVIEW
+                      ? "This preview follows the site’s private sharing settings. Live room invitations are not enabled here."
+                      : "Anyone with this link can enter. Share it with people you trust. Up to 20 visitors per village."}
                   </span>
                 </div>
               </>
@@ -1193,16 +1253,20 @@ export default function App() {
                 </ul>
                 <button
                   className="primary-button"
-                  disabled={room.locked && !self.host && !inMeeting}
+                  disabled={
+                    STATIC_PREVIEW || (room.locked && !self.host && !inMeeting)
+                  }
                   onClick={toggleMeeting}
                 >
-                  {!connected
-                    ? "Enter the village first"
-                    : inMeeting
-                      ? "Leave meeting"
-                      : room.locked && !self.host
-                        ? "Meeting is locked"
-                        : "Join the conversation"}
+                  {STATIC_PREVIEW
+                    ? "Meetings are unavailable in this preview"
+                    : !connected
+                      ? "Enter the village first"
+                      : inMeeting
+                        ? "Leave meeting"
+                        : room.locked && !self.host
+                          ? "Meeting is locked"
+                          : "Join the conversation"}
                   <ArrowRight size={17} />
                 </button>
                 <small className="form-note">

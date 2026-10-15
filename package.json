@@ -12,7 +12,8 @@
     "test": "playwright test",
     "deploy": "npm run build && wrangler deploy",
     "build:preview": "tsc -b && vite build --mode preview",
-    "test:protocol": "node tests/protocol.mjs"
+    "test:protocol": "node tests/protocol.mjs",
+    "test:media-policy": "node --test tests/media-policy.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "5.3.0",
@@ -29,7 +30,7 @@
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.2",
-    "prettier": "^3.9.10",
+    "prettier": "3.9.10",
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "wrangler": "4.151.0",

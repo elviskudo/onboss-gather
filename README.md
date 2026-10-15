@@ -27,7 +27,7 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 - Worker TypeScript + satu SQLite-backed Durable Object per ruang, WebSocket hibernation, attachment untuk presence, riwayat 60 pesan terakhir persisten.
 - Native WebRTC untuk audio/video peer-to-peer, perfect negotiation, koneksi ulang ICE, mic/camera opt-in. Audio dipudarkan berdasarkan jarak 12 unit, dan meeting memakai channel grup. Sender menutup peer ketika peserta keluar dari jangkauan/channel.
 - Host pertama: lock/unlock meeting dan kick. Host dialihkan ke peserta tersisa saat host keluar. Ini peran sesi sementara, bukan kepemilikan akun permanen.
-- Batas presence 20. Empat tile video maksimum pada meeting. Jumlah koneksi/stream media belum dibatasi melalui SFU; target 20 avatar bukan jaminan 20 kamera.
+- Batas presence 20. Empat tile video maksimum pada meeting. Setiap penerima berlangganan maksimum tiga kamera remote melalui kebijakan sender, ditambah satu preview lokal. Video di luar seleksi tidak ditambahkan ke peer sender. Audio masih P2P dan belum memakai SFU; target 20 avatar bukan jaminan 20 kamera.
 - WASD/panah, klik tanah, navigasi landmark, orbit/zoom, kontrol sentuh, kualitas grafis ringan, layout responsif.
 - PWA manifest dan service worker dengan halaman offline; sesi sosial membutuhkan koneksi. Aplikasi belum menyimpan seluruh shell untuk penggunaan offline.
 - Validasi nama/room/message/position, batas 16 KiB pesan, rate limit per sesi 35 pesan/detik, same-origin WebSocket, CSP dan header keamanan.

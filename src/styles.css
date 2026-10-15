@@ -1866,3 +1866,17 @@ kbd {
     max-width: min(210px, calc(100vw - 180px));
   }
 }
+
+.proximity-overlay {
+  top: auto;
+  bottom: 110px;
+  width: 330px;
+}
+@media (max-width: 760px) {
+  .proximity-overlay {
+    top: 185px;
+    bottom: auto;
+    width: auto;
+    max-height: 45vh;
+  }
+}

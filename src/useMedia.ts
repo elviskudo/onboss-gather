@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Person } from "./types";
+import { canHear, videoSubscriptions } from "./mediaPolicy";
 type Peer = {
   pc: RTCPeerConnection;
   stream: MediaStream;
@@ -23,7 +24,18 @@ export function useMedia(
     peers = useRef(new Map<string, Peer>()),
     ice = useRef<RTCIceServer[]>([{ urls: "stun:stun.cloudflare.com:3478" }]),
     current = useRef({ id, people, self, send, notice });
-  current.current = { id, people, self, send, notice };
+  const actualSelf = { ...self, mic, camera };
+  const present = [...people.filter((p) => p.id !== id), actualSelf];
+  const eligible = people
+    .filter((p) => canHear(actualSelf, p))
+    .map((p) => p.id)
+    .sort();
+  const videoRecipients = people
+    .filter((p) => videoSubscriptions(p, present).includes(id))
+    .map((p) => p.id)
+    .sort()
+    .join(",");
+  current.current = { id, people, self: actualSelf, send, notice };
   useEffect(() => {
     if (!import.meta.env.VITE_STATIC_PREVIEW)
       fetch("/api/media-config")
@@ -38,6 +50,25 @@ export function useMedia(
       peers.current.clear();
     };
   }, []);
+  function syncTracks(peerId: string, peer: Peer) {
+    const state = current.current;
+    const receiver = state.people.find((p) => p.id === peerId);
+    const everyone = [
+      ...state.people.filter((p) => p.id !== state.id),
+      state.self,
+    ];
+    const videoAllowed =
+      !!receiver && videoSubscriptions(receiver, everyone).includes(state.id);
+    const wanted = (local.current?.getTracks() || []).filter(
+      (t) => t.kind === "audio" || videoAllowed,
+    );
+    for (const sender of peer.pc.getSenders())
+      if (sender.track && !wanted.includes(sender.track))
+        peer.pc.removeTrack(sender);
+    for (const track of wanted)
+      if (!peer.pc.getSenders().some((s) => s.track === track))
+        peer.pc.addTrack(track, local.current!);
+  }
   function ensure(peerId: string) {
     let peer = peers.current.get(peerId);
     if (peer) return peer;
@@ -60,8 +91,12 @@ export function useMedia(
         });
     };
     pc.ontrack = (e) => {
-      for (const track of e.streams[0]?.getTracks() || [e.track])
+      for (const track of e.streams[0]?.getTracks() || [e.track]) {
+        for (const old of p.stream.getTracks())
+          if (old.kind === track.kind && old.id !== track.id)
+            p.stream.removeTrack(old);
         if (!p.stream.getTrackById(track.id)) p.stream.addTrack(track);
+      }
       setRemote((prev) => ({ ...prev, [peerId]: p.stream }));
     };
     pc.onnegotiationneeded = async () => {
@@ -89,8 +124,7 @@ export function useMedia(
         );
       }
     };
-    for (const t of local.current?.getTracks() || [])
-      pc.addTrack(t, local.current!);
+    syncTracks(peerId, p);
     return p;
   }
   signal.current = async (from, payload) => {
@@ -166,22 +200,9 @@ export function useMedia(
       setCamera(false);
       return;
     }
-    for (const pid of ids) if (id < pid) ensure(pid);
-    // Presence changes only; position updates must not recreate peer connections.
-  }, [
-    id,
-    people
-      .filter(
-        (p) =>
-          p.id !== id &&
-          (self.meeting
-            ? p.meeting
-            : !p.meeting && Math.hypot(p.x - self.x, p.z - self.z) < 12),
-      )
-      .map((p) => p.id)
-      .sort()
-      .join(","),
-  ]);
+    for (const pid of ids) syncTracks(pid, ensure(pid));
+    // Reconcile only when eligible peers or bounded camera subscriptions change.
+  }, [id, eligible.join(","), videoRecipients]);
   async function toggle(kind: "audio" | "video") {
     if (id === "local") {
       notice("Enter the village to use your microphone or camera.");
@@ -217,7 +238,9 @@ export function useMedia(
       if (!local.current) local.current = new MediaStream();
       for (const t of added.getTracks()) {
         local.current.addTrack(t);
-        for (const p of peers.current.values()) p.pc.addTrack(t, local.current);
+        if (t.kind === "audio")
+          for (const p of peers.current.values())
+            p.pc.addTrack(t, local.current);
       }
       setStream(new MediaStream(local.current.getTracks()));
       if (kind === "audio") setMic(true);

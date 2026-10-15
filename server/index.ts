@@ -166,6 +166,8 @@ export class Room extends DurableObject<Env> {
       ws.serializeAttachment(a);
       return;
     }
+    // Persist rate accounting for malformed and unsupported messages as well.
+    ws.serializeAttachment(a);
     let m: any;
     try {
       m = JSON.parse(message);

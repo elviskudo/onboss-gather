@@ -100,6 +100,9 @@ try {
       ),
     "host transfer",
   );
+  const oversized = await join("Oversized");
+  oversized.ws.send("x".repeat(17000));
+  await wait(() => oversized.closed === 1009, "oversized message rejection");
   console.log(
     "PASS: 20 real WebSocket clients; capacity, presence, chat truncation, navigation, host authorization, locked meeting, distant signaling denial, kick and host transfer.",
   );

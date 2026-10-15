@@ -5,7 +5,16 @@ export default defineConfig(({ mode }) => ({
     "import.meta.env.VITE_STATIC_PREVIEW": JSON.stringify(mode === "preview"),
   },
   plugins: [react()],
-  server: { proxy: { "/api": { target: "http://127.0.0.1:8787", ws: true } } },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8787",
+        ws: true,
+        changeOrigin: true,
+        rewriteWsOrigin: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {
