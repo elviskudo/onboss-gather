@@ -1,138 +1,279 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Person, Message } from "./types";
+
+type Status =
+  "exploring" | "connecting" | "connected" | "reconnecting" | "offline";
+type Spawn = { x: number; z: number; revision: number };
+const CONNECT_TIMEOUT = 12_000;
+const PING_INTERVAL = 12_000;
+const PONG_TIMEOUT = 8_000;
+
 export function useRoom(onNotice: (s: string) => void) {
-  const [people, setPeople] = useState<Person[]>([]),
-    [messages, setMessages] = useState<Message[]>([]),
-    [id, setId] = useState("local"),
-    [status, setStatus] = useState<
-      "exploring" | "connecting" | "connected" | "reconnecting" | "offline"
-    >("exploring"),
-    [locked, setLocked] = useState(false);
-  const socket = useRef<WebSocket | null>(null),
-    retry = useRef<ReturnType<typeof setTimeout> | null>(null),
-    intent = useRef(false),
-    attempts = useRef(0),
-    identity = useRef<{ name: string; color: string; room: string } | null>(
-      null,
-    ),
-    onSignal = useRef<(from: string, payload: any) => void>(() => {});
+  const [people, setPeople] = useState<Person[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [id, setId] = useState("local");
+  const [status, setStatus] = useState<Status>("exploring");
+  const [locked, setLocked] = useState(false);
+  const [spawn, setSpawn] = useState<Spawn | null>(null);
+  const socket = useRef<WebSocket | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intent = useRef(false);
+  const attempts = useRef(0);
+  const connectedBefore = useRef(false);
+  const live = useRef(false);
+  const identity = useRef<{ name: string; color: string; room: string } | null>(
+    null,
+  );
+  const onSignal = useRef<(from: string, payload: any) => void>(() => {});
   const notice = useRef(onNotice);
   notice.current = onNotice;
+
+  // Retire before closing: queued events from the previous connection cannot
+  // change the new session, schedule another retry, or add a duplicate avatar.
+  const retire = useCallback(() => {
+    for (const timer of [retryTimer, connectionTimer, heartbeatTimer]) {
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const ws = socket.current;
+    socket.current = null;
+    live.current = false;
+    if (ws) {
+      ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+      try {
+        ws.close();
+      } catch {
+        /* Already closed by the network. */
+      }
+    }
+  }, []);
+
   const send = useCallback((data: unknown) => {
-    if (socket.current?.readyState === WebSocket.OPEN) {
+    if (!live.current || socket.current?.readyState !== WebSocket.OPEN)
+      return false;
+    try {
       socket.current.send(JSON.stringify(data));
       return true;
+    } catch {
+      return false;
     }
-    return false;
   }, []);
-  const connect = useCallback(function open() {
-    const i = identity.current;
-    if (!i || !intent.current) return;
-    setStatus(attempts.current ? "reconnecting" : "connecting");
-    const url = new URL(`/api/rooms/${i.room}/socket`, window.location.origin);
-    url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    url.searchParams.set("name", i.name);
-    url.searchParams.set("color", i.color);
-    const ws = new WebSocket(url);
-    socket.current = ws;
-    ws.onopen = () => {
-      attempts.current = 0;
-      setStatus("connected");
-    };
-    ws.onmessage = (e) => {
-      let m;
-      try {
-        m = JSON.parse(e.data);
-      } catch {
-        return;
-      }
-      if (m.type === "welcome") {
-        setId(m.id);
-        setMessages(m.history);
-      }
-      if (m.type === "state") {
-        setPeople(m.people);
-        setLocked(m.locked);
-      }
-      if (m.type === "move")
-        setPeople((p) =>
-          p.map((v) => (v.id === m.id ? { ...v, x: m.x, z: m.z } : v)),
-        );
-      if (m.type === "chat") setMessages((p) => [...p, m.message].slice(-60));
-      if (m.type === "error") notice.current(m.message);
-      if (m.type === "signal") onSignal.current(m.from, m.payload);
-    };
-    ws.onclose = (e) => {
-      if (socket.current !== ws) return;
-      setPeople([]);
-      if (e.code === 4003) {
-        intent.current = false;
-        setStatus("offline");
-        notice.current("You were removed from this space by the host.");
-        return;
-      }
-      if (intent.current && attempts.current < 6) {
+
+  const connect = useCallback(
+    function open() {
+      const i = identity.current;
+      if (!i || !intent.current) return;
+      retire();
+      if (!navigator.onLine) {
         setStatus("reconnecting");
-        retry.current = setTimeout(
-          open,
-          Math.min(1500 * 2 ** attempts.current++, 15000),
-        );
-      } else {
-        setStatus("offline");
-        if (intent.current)
+        return;
+      }
+      setStatus(
+        connectedBefore.current || attempts.current
+          ? "reconnecting"
+          : "connecting",
+      );
+      const url = new URL(
+        `/api/rooms/${i.room}/socket`,
+        window.location.origin,
+      );
+      url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      url.searchParams.set("name", i.name);
+      url.searchParams.set("color", i.color);
+      const ws = new WebSocket(url);
+      socket.current = ws;
+      const isCurrent = () => socket.current === ws && intent.current;
+      const disconnect = (code?: number) => {
+        if (!isCurrent()) return;
+        retire();
+        setPeople([]);
+        setId("local");
+        setLocked(false);
+        if (code === 4003) {
+          intent.current = false;
+          setStatus("offline");
+          notice.current("You were removed from this space by the host.");
+          return;
+        }
+        if (!navigator.onLine) {
+          setStatus("reconnecting");
+          return;
+        }
+        if (attempts.current >= 6) {
+          setStatus("offline");
           notice.current(
             "Could not connect to the room. You can keep exploring or retry.",
           );
-      }
-    };
-    ws.onerror = () => ws.close();
-  }, []);
+          return;
+        }
+        setStatus("reconnecting");
+        const delay =
+          Math.min(1500 * 2 ** attempts.current++, 15000) + Math.random() * 400;
+        retryTimer.current = setTimeout(open, delay);
+      };
+      const heartbeat = () => {
+        if (heartbeatTimer.current) clearTimeout(heartbeatTimer.current);
+        heartbeatTimer.current = setTimeout(() => {
+          if (!isCurrent() || !live.current) return;
+          try {
+            ws.send("ping");
+          } catch {
+            disconnect();
+            return;
+          }
+          heartbeatTimer.current = setTimeout(() => disconnect(), PONG_TIMEOUT);
+        }, PING_INTERVAL);
+      };
+      connectionTimer.current = setTimeout(() => disconnect(), CONNECT_TIMEOUT);
+      // A transport handshake alone does not mean admission to a room succeeded.
+      ws.onmessage = (e) => {
+        if (!isCurrent()) return;
+        if (e.data === "pong") {
+          if (live.current) {
+            // Reset backoff only after a successful liveness check, not after
+            // admission alone: a server that accepts then drops must still stop retrying.
+            attempts.current = 0;
+            heartbeat();
+          }
+          return;
+        }
+        let m: any;
+        try {
+          m = JSON.parse(e.data);
+        } catch {
+          return;
+        }
+        if (!m || typeof m !== "object") return;
+        if (
+          m.type === "welcome" &&
+          typeof m.id === "string" &&
+          Array.isArray(m.history)
+        ) {
+          if (live.current) return;
+          if (connectionTimer.current) clearTimeout(connectionTimer.current);
+          connectionTimer.current = null;
+          const restored = connectedBefore.current;
+          connectedBefore.current = true;
+          live.current = true;
+          setId(m.id);
+          setMessages(m.history);
+          setSpawn((previous) => ({
+            x: Number.isFinite(m.self?.x) ? m.self.x : 3.5,
+            z: Number.isFinite(m.self?.z) ? m.self.z : 9,
+            revision: (previous?.revision ?? 0) + 1,
+          }));
+          setStatus("connected");
+          heartbeat();
+          if (restored)
+            notice.current(
+              "Connection restored. You are back in the village square with mic and camera off.",
+            );
+          return;
+        }
+        if (!live.current) return;
+        if (m.type === "state" && Array.isArray(m.people)) {
+          setPeople(m.people);
+          setLocked(m.locked === true);
+        }
+        if (
+          m.type === "move" &&
+          typeof m.id === "string" &&
+          Number.isFinite(m.x) &&
+          Number.isFinite(m.z)
+        )
+          setPeople((p) =>
+            p.map((v) => (v.id === m.id ? { ...v, x: m.x, z: m.z } : v)),
+          );
+        if (m.type === "chat" && m.message && typeof m.message.id === "string")
+          setMessages((p) =>
+            p.some((v) => v.id === m.message.id)
+              ? p
+              : [...p, m.message].slice(-60),
+          );
+        if (m.type === "error" && typeof m.message === "string")
+          notice.current(m.message);
+        if (m.type === "signal" && typeof m.from === "string")
+          onSignal.current(m.from, m.payload);
+      };
+      ws.onclose = (e) => disconnect(e.code);
+      ws.onerror = () => disconnect();
+    },
+    [retire],
+  );
+
   const join = useCallback(
     (name: string, color: string, room: string) => {
-      intent.current = false;
-      if (retry.current) clearTimeout(retry.current);
-      socket.current?.close();
+      retire();
+      setPeople([]);
+      setId("local");
+      setLocked(false);
       identity.current = { name, color, room };
       intent.current = true;
       attempts.current = 0;
+      connectedBefore.current = false;
       connect();
     },
-    [connect],
+    [connect, retire],
   );
+
   const leave = useCallback(() => {
     intent.current = false;
-    if (retry.current) clearTimeout(retry.current);
-    socket.current?.close();
-    socket.current = null;
+    retire();
+    identity.current = null;
+    connectedBefore.current = false;
     setPeople([]);
     setId("local");
     setMessages([]);
+    setLocked(false);
+    setSpawn(null);
     setStatus("exploring");
-  }, []);
-  useEffect(
-    () => () => {
+  }, [retire]);
+
+  const retry = useCallback(() => {
+    if (!identity.current || live.current) return;
+    intent.current = true;
+    attempts.current = 0;
+    connect();
+  }, [connect]);
+
+  useEffect(() => {
+    const online = () => {
+      if (intent.current && !live.current) {
+        attempts.current = 0;
+        connect();
+      }
+    };
+    const offline = () => {
+      if (!intent.current) return;
+      retire();
+      setPeople([]);
+      setId("local");
+      setLocked(false);
+      setStatus("reconnecting");
+    };
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
       intent.current = false;
-      if (retry.current) clearTimeout(retry.current);
-      socket.current?.close();
-    },
-    [],
-  );
+      retire();
+    };
+  }, [connect, retire]);
+
   return {
     people,
     messages,
     id,
     status,
     locked,
+    spawn,
     send,
     join,
     leave,
     onSignal,
-    retry: () => {
-      if (identity.current) {
-        attempts.current = 0;
-        intent.current = true;
-        connect();
-      }
-    },
+    retry,
   };
 }

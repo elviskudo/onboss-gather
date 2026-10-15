@@ -23,3 +23,20 @@ Not yet verified: Safari, physical phones/tablets, real microphones/cameras acro
 
 - Exploration-preview browser scenario passed: camera and microphone controls are disabled, avatar customization works, and zero WebSocket connections are opened. Preview screenshot: `preview.png`.
 - Final protocol rerun also passed oversized-message rejection (close code 1009).
+
+## 16 October 2026 — mosque and connection recovery
+
+- Replaced the entire former religious landmark mesh with an original mosque: a faceted sage-green dome, minaret with balcony, arched openings and gold crescent ornaments. The scene contains no remaining church/spire mesh or cross ornament. Refreshed desktop/mobile screenshots show the mosque.
+- Added admission timeout (12 seconds), a single retained connection, cancellation of retired callbacks/timers, bounded retry with jitter, online/offline handling, and a 12-second heartbeat with an 8-second reply deadline. Durable Object native auto-response handles `ping`/`pong` while preserving hibernation support.
+- The server welcome packet includes authoritative spawn coordinates. The client resynchronizes its avatar to those coordinates on each admission; reconnect leaves microphone/camera off.
+- Strict client/Worker checks and production build passed. Protocol smoke test passed with 20 clients, including native ping/pong and spawn metadata.
+- Existing UI, chat/host controls, API and synthetic WebRTC browser scenarios passed again. A real offline/online cycle with two participants passed: retry while offline created no socket, recovery produced one new session, the observer saw two participants, and post-recovery movement was accepted by the server.
+- Admission-timeout/backoff and unresponsive-heartbeat browser tests are recorded below once their running checks complete. See `production-readiness.md` for the unchanged full release scope.
+- All seven browser scenarios passed in the combined run (2.6 minutes): desktop/mobile scene, two-user social/host controls, API routes, synthetic WebRTC, real offline recovery with authoritative movement, admission timeout/manual retry cancellation, and replacement of a socket that stopped replying to heartbeat.
+- An additional retry-budget test covers a server that repeatedly admits then closes a connection. Backoff is reset only after a successful heartbeat reply, rather than on admission alone; the result is recorded after that targeted test completes.
+
+- The flapping-admission test passed: one initial admission plus six retries, then Offline with no orphaned retry timer.
+- Corrected a client/server world-envelope mismatch that previously clamped the north path to z=-16 even though the client could walk to z=-24. Both now import the same bounds; the protocol check explicitly exercises movement to z=-23.
+
+- Final protocol rerun passed, including movement to z=-23 under the shared client/server bounds. Desktop and mobile screenshots were visually inspected and both display the new mosque.
+- The exploration-preview browser test passed again (11.2 seconds): the refreshed preview screenshot shows the mosque, avatar customization works, media controls remain disabled and no room WebSocket is opened.

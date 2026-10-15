@@ -216,6 +216,13 @@ export default function App() {
       setMeeting(false);
     }
   }, [room.status]);
+  useEffect(() => {
+    if (!room.spawn) return;
+    setPlace(0);
+    position.current = { x: room.spawn.x, z: room.spawn.z };
+    setPos(position.current);
+    world.current?.go(room.spawn.x, room.spawn.z);
+  }, [room.spawn]);
   function move(x: number, z: number) {
     position.current = { x, z };
     setPos({ x, z });

@@ -23,6 +23,7 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 
 ## Implementasi saat ini
 
+- Desa low-poly orisinal dengan masjid tepi danau, kubah, menara, serta ornamen bulan sabit sesuai preferensi pengguna.
 - React + TypeScript untuk UI; Three.js untuk dunia 3D. Material dibagi dan geometri statis digabung untuk mengurangi draw call; render idle dibatasi.
 - Worker TypeScript + satu SQLite-backed Durable Object per ruang, WebSocket hibernation, attachment untuk presence, riwayat 60 pesan terakhir persisten.
 - Native WebRTC untuk audio/video peer-to-peer, perfect negotiation, koneksi ulang ICE, mic/camera opt-in. Audio dipudarkan berdasarkan jarak 12 unit, dan meeting memakai channel grup. Sender menutup peer ketika peserta keluar dari jangkauan/channel.
@@ -30,6 +31,7 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 - Batas presence 20. Empat tile video maksimum pada meeting. Setiap penerima berlangganan maksimum tiga kamera remote melalui kebijakan sender, ditambah satu preview lokal. Video di luar seleksi tidak ditambahkan ke peer sender. Audio masih P2P dan belum memakai SFU; target 20 avatar bukan jaminan 20 kamera.
 - WASD/panah, klik tanah, navigasi landmark, orbit/zoom, kontrol sentuh, kualitas grafis ringan, layout responsif.
 - PWA manifest dan service worker dengan halaman offline; sesi sosial membutuhkan koneksi. Aplikasi belum menyimpan seluruh shell untuk penggunaan offline.
+- Pemulihan koneksi memakai satu socket aktif, timeout admission 12 detik, backoff terbatas, retry manual yang membatalkan timer lama, dan respons online/offline browser. Heartbeat native Durable Object memeriksa sambungan macet tanpa membangunkan ruang idle. Setelah reconnect, posisi diselaraskan ke spawn server dan media kembali mati.
 - Validasi nama/room/message/position, batas 16 KiB pesan, rate limit per sesi 35 pesan/detik, same-origin WebSocket, CSP dan header keamanan.
 
 ## Deployment penuh ke Cloudflare

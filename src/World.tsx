@@ -1,3 +1,4 @@
+import { WORLD_BOUNDS } from "../shared/world";
 import { useEffect, useRef } from "react";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -313,24 +314,124 @@ export function World({
     house(18, -17, 4.5, 5, 4.2, "#d9b57e", "#8a6856");
     house(12, -4, 6, 5, 4, "#ede0c7", "#8d6b58", Math.PI);
     house(-24, 12, 4, 4.5, 4, "#e5d4b2", "#815e4d");
-    // Iconic lakeside church and its slender spire.
-    const church = new T.Group();
-    church.position.set(12, 0.6, 17);
-    scene.add(church);
-    box(5.5, 5, 8, "#e8ddc5", 0, 2.5, 0, church);
-    roof(6.1, 8.5, 2.9, "#686e63", 0, 5, 0, church);
-    box(2.6, 9.5, 2.8, "#ebe3d0", 0, 4.75, 4.5, church);
-    box(2.9, 0.3, 3.1, "#c4bdaa", 0, 8.7, 4.5, church);
-    cylinder(0, 2.25, 7, "#596c64", 0, 13, 4.5, 4, church).rotation.y =
-      Math.PI / 4;
-    box(0.1, 1.1, 0.1, "#bbad7f", 0, 17, 4.5, church);
-    box(0.65, 0.1, 0.1, "#bbad7f", 0, 17.15, 4.5, church);
-    box(0.8, 1.6, 0.1, "#7c8c7e", 0, 7.6, 5.94, church);
-    cylinder(0.62, 0.62, 0.1, "#f1e6ca", 0, 6, 5.95, 24, church).rotation.x =
-      Math.PI / 2;
-    box(0.07, 0.4, 0.1, "#645d4a", 0, 6.14, 6.04, church);
-    box(0.32, 0.06, 0.1, "#645d4a", 0.13, 6, 6.05, church);
-    obstacles.push({ x: 12, z: 17, w: 3.2, d: 5.8 });
+    // Original lakeside mosque: faceted dome, arched openings, minaret and crescents.
+    const mosque = new T.Group();
+    mosque.name = "Lakeside mosque";
+    mosque.position.set(12, 0.6, 17);
+    scene.add(mosque);
+    box(6.4, 4.4, 7, "#eee3ce", 0, 2.2, 0, mosque);
+    box(6.8, 0.25, 7.4, "#d3c4a3", 0, 0.16, 0, mosque);
+    box(6.8, 0.3, 7.4, "#e6d8bb", 0, 4.45, 0, mosque);
+    cylinder(2.65, 2.7, 0.38, "#d8c8a3", 0, 4.8, 0, 16, mosque);
+    mesh(
+      new T.SphereGeometry(2.55, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      mat("#628777", { flatShading: true }),
+      0,
+      4.95,
+      0,
+      mosque,
+    );
+    function crescent(x: number, y: number, z: number, r: number) {
+      const outline = new T.Shape();
+      outline.absarc(0, 0, r, Math.PI / 3, (Math.PI * 5) / 3, false);
+      outline.absarc(
+        r / 2,
+        0,
+        r * Math.sqrt(0.75),
+        -Math.PI / 2,
+        Math.PI / 2,
+        true,
+      );
+      outline.closePath();
+      const symbol = mesh(
+        new T.ExtrudeGeometry(outline, {
+          depth: 0.07,
+          bevelEnabled: false,
+          curveSegments: 10,
+        }),
+        mat("#c6a665", { side: T.DoubleSide }),
+        x,
+        y,
+        z,
+        mosque,
+      );
+      symbol.rotation.y = 0.72;
+    }
+    cylinder(0.055, 0.075, 0.65, "#c6a665", 0, 7.78, 0, 8, mosque);
+    crescent(0, 8.38, 0, 0.42);
+    function archedOpening(
+      x: number,
+      y: number,
+      z: number,
+      w: number,
+      h: number,
+      rotation = 0,
+    ) {
+      const arch = new T.Shape();
+      arch.moveTo(-w / 2, 0);
+      arch.lineTo(w / 2, 0);
+      arch.lineTo(w / 2, h - w / 2);
+      arch.absarc(0, h - w / 2, w / 2, 0, Math.PI, false);
+      arch.closePath();
+      const opening = mesh(
+        new T.ShapeGeometry(arch, 8),
+        mat("#50776b", { side: T.DoubleSide }),
+        x,
+        y,
+        z,
+        mosque,
+      );
+      opening.rotation.y = rotation;
+    }
+    archedOpening(0, 0.2, 3.52, 1.65, 3.1);
+    for (const x of [-2.2, 2.2]) archedOpening(x, 1.45, 3.53, 0.8, 1.85);
+    for (const z of [-1.9, 1.9])
+      archedOpening(3.22, 1.4, z, 0.9, 1.9, Math.PI / 2);
+    box(2.4, 0.22, 1.25, "#d8c8aa", 0, 0.1, 3.85, mosque);
+    box(2.8, 0.12, 1.55, "#e3d5b8", 0, 0.02, 4.05, mosque);
+    const tx = -4.25,
+      tz = -1.5;
+    cylinder(1.05, 1.15, 0.55, "#d3c5a5", tx, 0.28, tz, 12, mosque);
+    cylinder(0.65, 0.8, 7.3, "#ece2cb", tx, 4.05, tz, 12, mosque);
+    cylinder(1.15, 0.8, 0.35, "#d3c5a5", tx, 7.82, tz, 12, mosque);
+    cylinder(0.46, 0.53, 2.4, "#eee3ce", tx, 9.0, tz, 12, mosque);
+    for (let i = 0; i < 10; i++) {
+      const a = (i * Math.PI) / 5;
+      cylinder(
+        0.045,
+        0.045,
+        0.6,
+        "#d4c6a5",
+        tx + Math.cos(a) * 1.02,
+        8.28,
+        tz + Math.sin(a) * 1.02,
+        6,
+        mosque,
+      );
+    }
+    const railing = mesh(
+      new T.TorusGeometry(1.02, 0.055, 5, 16),
+      mat("#d3c5a5"),
+      tx,
+      8.58,
+      tz,
+      mosque,
+    );
+    railing.rotation.x = Math.PI / 2;
+    mesh(
+      new T.SphereGeometry(0.76, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+      mat("#628777", { flatShading: true }),
+      tx,
+      10.25,
+      tz,
+      mosque,
+    );
+    cylinder(0.04, 0.055, 0.6, "#c6a665", tx, 11.25, tz, 6, mosque);
+    crescent(tx, 11.83, tz, 0.28);
+    obstacles.push(
+      { x: 12, z: 17, w: 3.6, d: 4.5 },
+      { x: 12 + tx, z: 17 + tz, w: 1.3, d: 1.3 },
+    );
     function tree(x: number, z: number, s = 1, pine = true) {
       cylinder(0.13 * s, 0.22 * s, 1.7 * s, "#806e52", x, 1.2 * s, z);
       if (pine) {
@@ -613,10 +714,10 @@ export function World({
     const destination = new T.Vector3();
     function valid(x: number, z: number) {
       return (
-        x > -27 &&
-        x < 24 &&
-        z > -24 &&
-        z < 24 &&
+        x > WORLD_BOUNDS.minX &&
+        x < WORLD_BOUNDS.maxX &&
+        z > WORLD_BOUNDS.minZ &&
+        z < WORLD_BOUNDS.maxZ &&
         !obstacles.some(
           (o) =>
             Math.abs(x - o.x) < o.w + 0.35 && Math.abs(z - o.z) < o.d + 0.35,

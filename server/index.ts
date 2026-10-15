@@ -1,3 +1,4 @@
+import { WORLD_BOUNDS } from "../shared/world";
 import { DurableObject } from "cloudflare:workers";
 interface Env {
   ROOMS: DurableObjectNamespace<Room>;
@@ -76,6 +77,10 @@ export class Room extends DurableObject<Env> {
   history: { id: string; name: string; text: string; at: number }[] = [];
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    // Native ping/pong keeps idle rooms hibernating while clients detect a dead transport.
+    ctx.setWebSocketAutoResponse(
+      new WebSocketRequestResponsePair("ping", "pong"),
+    );
     ctx.blockConcurrencyWhile(async () => {
       this.locked = (await ctx.storage.get<boolean>("locked")) ?? false;
       this.history = (await ctx.storage.get<typeof this.history>("chat")) ?? [];
@@ -146,7 +151,12 @@ export class Room extends DurableObject<Env> {
     } satisfies Attachment);
     this.ctx.acceptWebSocket(server);
     server.send(
-      JSON.stringify({ type: "welcome", id: person.id, history: this.history }),
+      JSON.stringify({
+        type: "welcome",
+        id: person.id,
+        self: person,
+        history: this.history,
+      }),
     );
     this.sync();
     return new Response(null, { status: 101, webSocket: client });
@@ -178,8 +188,11 @@ export class Room extends DurableObject<Env> {
     switch (m.type) {
       case "move":
         if (Number.isFinite(m.x) && Number.isFinite(m.z)) {
-          const x = Math.max(-24, Math.min(24, m.x)),
-            z = Math.max(-16, Math.min(22, m.z));
+          const x = Math.max(
+              WORLD_BOUNDS.minX,
+              Math.min(WORLD_BOUNDS.maxX, m.x),
+            ),
+            z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, m.z));
           if (Math.hypot(x - a.person.x, z - a.person.z) <= 3) {
             a.person.x = x;
             a.person.z = z;

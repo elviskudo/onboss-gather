@@ -18,7 +18,8 @@ async function join(name) {
   const c = { ws, m: [], id: "", closed: 0 };
   clients.push(c);
   ws.on("message", (data) => {
-    const m = JSON.parse(String(data));
+    const m =
+      String(data) === "pong" ? { type: "pong" } : JSON.parse(String(data));
     c.m.push(m);
     if (m.type === "welcome") c.id = m.id;
   });
@@ -36,6 +37,21 @@ try {
     "presence",
   );
   assert.equal(host.m.find((m) => m.type === "state").people[0].host, true);
+  const welcome = host.m.find((m) => m.type === "welcome");
+  assert.equal(welcome.self.x, 3.5);
+  assert.equal(welcome.self.z, 9);
+  host.ws.send("ping");
+  await wait(
+    () => host.m.some((m) => m.type === "pong"),
+    "hibernation ping/pong",
+  );
+  // The north path was walkable in the client but incorrectly clamped to z=-16 by the server.
+  for (let z = 7; z >= -23; z -= 2) send(host, { type: "move", x: 3.5, z });
+  await wait(
+    () =>
+      guest.m.some((m) => m.type === "move" && m.id === host.id && m.z === -23),
+    "north path authoritative movement",
+  );
   send(guest, { type: "lock", locked: true });
   await new Promise((r) => setTimeout(r, 80));
   assert.equal(host.m.filter((m) => m.type === "state").at(-1).locked, false);
