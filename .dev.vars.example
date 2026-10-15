@@ -1,0 +1,4 @@
+# Optional short-lived TURN credentials for network testing. Never commit real credentials.
+# TURN_URL=turn:your-relay.example:3478
+# TURN_USERNAME=ephemeral-username
+# TURN_CREDENTIAL=ephemeral-password
