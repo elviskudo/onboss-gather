@@ -19,6 +19,7 @@ import {
   Info,
   Leaf,
   LockKeyhole,
+  LogOut,
   Map,
   MapPin,
   MessageCircle,
@@ -131,7 +132,9 @@ function RemoteAudio({
   return <audio ref={ref} autoPlay />;
 }
 export default function App() {
-  const [toast, setToast] = useState(""),
+  const [signedOut, setSignedOut] = useState(false),
+    [signingOut, setSigningOut] = useState(false),
+    [toast, setToast] = useState(""),
     [name, setName] = useState(() => stored("hallstatt-name", "Explorer")),
     [color, setColor] = useState(() => stored("hallstatt-color", COLORS[0])),
     [avatar, setAvatar] = useState<AvatarId>(() => {
@@ -176,6 +179,7 @@ export default function App() {
     [welcome, setWelcome] = useState(true),
     [mobileMenu, setMobileMenu] = useState(false),
     [sound, setSound] = useState(true);
+  const authRequest = useRef<AbortController | null>(null);
   const world = useRef<WorldHandle | null>(null),
     position = useRef({ x: 3.5, z: 9 }),
     [pos, setPos] = useState(position.current),
@@ -261,13 +265,16 @@ export default function App() {
     world.current?.go(room.spawn.x, room.spawn.z);
   }, [room.spawn]);
   useEffect(() => {
-    if (STATIC_PREVIEW) return;
-    fetch("/api/auth/session")
+    if (STATIC_PREVIEW || signedOut) return;
+    const controller = new AbortController();
+    authRequest.current = controller;
+    fetch("/api/auth/session", { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error("session");
         return r.json();
       })
       .then((data) => {
+        if (controller.signal.aborted) return;
         setAuth(data);
         if (data?.user) {
           const p = data.user.profile;
@@ -287,10 +294,12 @@ export default function App() {
         }
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
         setAuth({ required: true, configured: false, user: null });
         notify("Tidak dapat memeriksa login. Silakan muat ulang.");
       });
-  }, []);
+    return () => controller.abort();
+  }, [signedOut]);
   function openProfile(id: string) {
     setProfileId(id);
     setDraftName(name);
@@ -409,6 +418,64 @@ export default function App() {
     setWelcome(true);
     notify("You left the room. You can still explore the village.");
   }
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    authRequest.current?.abort();
+    media.stop();
+    room.leave();
+    setMeeting(false);
+    try {
+      if (!STATIC_PREVIEW) {
+        const res = await fetch("/api/auth/logout", { method: "POST" });
+        if (!res.ok) throw new Error("logout");
+      }
+      setAuth((previous) => (previous ? { ...previous, user: null } : null));
+      setModal(null);
+      setProfileId(null);
+      setMobileMenu(false);
+      setPanel("places");
+      setArea("village");
+      setPlace(0);
+      setToast("");
+      position.current = { x: 3.5, z: 9 };
+      setPos(position.current);
+      setSignedOut(true);
+    } catch {
+      notify("Gagal sign out. Sesi akun belum diakhiri. Silakan coba lagi.");
+    } finally {
+      setSigningOut(false);
+    }
+  }
+  if (signedOut)
+    return (
+      <main className="signed-out-page">
+        <section aria-labelledby="signed-out-title">
+          <span className="modal-symbol">
+            <LogOut size={28} />
+          </span>
+          <div className="eyebrow">HALLSTATT</div>
+          <h1 id="signed-out-title">Kamu sudah keluar.</h1>
+          <p>
+            {STATIC_PREVIEW
+              ? "Kunjungan preview sudah berakhir. Sampai jumpa kembali di desa."
+              : "Sesi aplikasi sudah diakhiri. Mic dan kamera sudah dimatikan."}
+          </p>
+          <button
+            className="primary-button"
+            onClick={() => {
+              setSignedOut(false);
+              setWelcome(true);
+              setReady(false);
+              setWorldError(false);
+              setModal("join");
+            }}
+          >
+            Masuk kembali <ArrowRight size={17} />
+          </button>
+        </section>
+      </main>
+    );
   const placeIcons = [
     <MapPin size={19} />,
     <Waves size={19} />,
@@ -711,6 +778,16 @@ export default function App() {
                 Retry
               </button>
             )}
+            <button
+              className="sign-out-button"
+              aria-label="Sign out"
+              title="Sign out"
+              disabled={signingOut}
+              onClick={signOut}
+            >
+              <LogOut size={17} />
+              <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+            </button>
             <button
               className="invite-button"
               onClick={() => setModal("invite")}
@@ -1178,6 +1255,16 @@ export default function App() {
                 </div>
                 <div className="eyebrow">VILLAGER PROFILE</div>
                 <h2 id="modal-title">{selectedProfile.name}</h2>
+                {profileId === self.id && (
+                  <button
+                    className="profile-sign-out"
+                    disabled={signingOut}
+                    onClick={signOut}
+                  >
+                    <LogOut size={17} />
+                    {signingOut ? "Signing out…" : "Sign out"}
+                  </button>
+                )}
                 {profileId !== self.id ? (
                   <>
                     <p>
@@ -1459,25 +1546,14 @@ export default function App() {
                     thoughtful tribute to Hallstatt, Austria.
                   </span>
                 </div>
-                {auth?.user && (
-                  <button
-                    className="subtle-button"
-                    onClick={async () => {
-                      media.stop();
-                      room.leave();
-                      const res = await fetch("/api/auth/logout", {
-                        method: "POST",
-                      });
-                      if (res.ok) {
-                        setAuth({ ...auth, user: null });
-                        setModal(null);
-                        notify("Kamu sudah keluar dari akun Google.");
-                      } else notify("Gagal keluar. Silakan coba lagi.");
-                    }}
-                  >
-                    Keluar akun Google · {auth.user.name}
-                  </button>
-                )}
+                <button
+                  className="profile-sign-out"
+                  disabled={signingOut}
+                  onClick={signOut}
+                >
+                  <LogOut size={17} />
+                  {signingOut ? "Signing out…" : "Sign out"}
+                </button>
               </>
             )}
             {modal === "help" && (

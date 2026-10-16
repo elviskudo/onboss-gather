@@ -69,3 +69,9 @@ Strict client/Worker checks and full build passed. The dedicated desktop/mobile 
 - `wrangler login` succeeded for the owner account; `npm run deploy` uploaded the full Worker with static assets, ROOMS and AUTH bindings (version `e0b8d5e0-f53e-48d0-a131-86ac7f3dc4ea`) to https://hallstatt-social.elviskudo.workers.dev.
 - From the public domain, `/api/health` and `/api/auth/session` return 200, unknown API routes return 404 JSON, and media/socket routes stay behind the login gate because the hostname is not localhost.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are still missing, so `/api/auth/google` returns 503 until the OAuth Client is created; real Google login, TURN and cross-network media remain unverified.
+
+## 17 October 2026 — visible Sign out
+
+Added Sign out to the top bar (an accessible icon on narrow screens), the top of the owner's profile dialog and settings. It stops local media, leaves the realtime room and, in full mode, calls POST /api/auth/logout before showing success. A failed request leaves the account visibly signed in and reports that logout did not complete. Pending identity requests are aborted to prevent stale profile data from restoring the signed-in UI. Signing out removes the 3D world and presents a clear end-of-session screen with Masuk kembali. Preview mode explicitly ends the local visit without pretending to revoke a Google or ChatGPT session.
+
+Strict checks and full/preview builds passed. Two full-mode browser scenarios passed with mocked account/logout responses (27.0 seconds), covering successful revocation/re-entry and a 503 logout failure. The preview scenario passed (10.5 seconds): mobile header access, no horizontal overflow, profile-menu access, world removal, re-entry and zero auth requests. Screenshot: signout-mobile.png. This does not claim a live Google OAuth integration test.
