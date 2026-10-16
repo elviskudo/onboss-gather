@@ -49,6 +49,8 @@ npm run deploy
 
 `wrangler.jsonc` mendefinisikan Worker, static assets, binding ROOMS/AUTH, dan migrasi Durable Object. Jangan deploy build preview; `npm run deploy` membangun ulang mode penuh. Gunakan HTTPS untuk media dan undangan antarperangkat. `npx wrangler tail` untuk diagnosis. Kunci versi ada pada package-lock.json.
 
+Deployment produksi berjalan di https://hallstatt-social.elviskudo.workers.dev; riwayat versi ada di [RELEASE.md](RELEASE.md). Multiplayer/media di domain ini wajib login Google, jadi pasang secrets OAuth sebelum mengundang pengguna.
+
 Panduan konfigurasi Google lengkap: [docs/cloudflare-google-setup.md](docs/cloudflare-google-setup.md). Pasang GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET sebagai Wrangler secrets setelah membuat OAuth Client Web Application dengan callback `/api/auth/callback`.
 
 TURN opsional untuk uji jaringan, dibutuhkan untuk cakupan konektivitas produksi:

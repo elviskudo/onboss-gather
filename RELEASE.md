@@ -42,3 +42,11 @@ npx wrangler tail
 ```
 
 `npm run deploy` membangun mode penuh lalu menerapkan Worker, static assets, dan migrasi Durable Object ROOMS/AUTH. Jangan deploy hasil `npm run build:preview`; build tersebut mematikan koneksi realtime. Secrets: `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET` wajib agar login berfungsi di domain publik; `TURN_URL`/`TURN_USERNAME`/`TURN_CREDENTIAL` opsional.
+
+### Riwayat deployment
+
+| Tanggal     | Lingkungan | URL                                            | Versi                                |
+| ----------- | ---------- | ---------------------------------------------- | ------------------------------------ |
+| 16 Okt 2026 | produksi   | https://hallstatt-social.elviskudo.workers.dev | e0b8d5e0-f53e-48d0-a131-86ac7f3dc4ea |
+
+Catatan deployment: `/api/health` membalas 200 dan gate login aktif karena hostname bukan localhost. `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` belum dipasang sebagai Wrangler secrets, sehingga `/api/auth/google` membalas 503 sampai OAuth Client dibuat mengikuti [docs/cloudflare-google-setup.md](docs/cloudflare-google-setup.md).

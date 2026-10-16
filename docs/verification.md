@@ -61,4 +61,11 @@ User narrowed the current work to 3D visuals inspired by the farming-village atm
 Replaced faceted foliage and cone mountains with smooth orchard crowns and rolling hills; smoothed mosque domes and round props; added selective bevels to architectural geometry. Five original deterministic sRGB CanvasTextures provide grass, paving, timber grain, clay tiles and plaster detail. Geometry batches now retain UV coordinates. Added vegetable beds, flowers and a cottage fence; increased face detail and expressive head/eye proportions. Reframed the camera to keep the avatar clear of the mosque in the foreground. Existing gameplay collision remains separate from the detailed render geometry.
 
 Strict client/Worker checks and full build passed. The dedicated desktop/mobile visual scenario passed (2.0 minutes), including direct avatar-profile interaction, six preset options, visual customization, landmark navigation, entering/exiting an interior, zero horizontal overflow at 390px, and no captured JavaScript/console errors. Screenshots: cozy-overview.png, cozy-character.png, cozy-village.png, cozy-interior.png and cozy-mobile.png. Native in-app browser inspection also verified the smooth village and crop area; cozy-village.jpg records that view. Automated WebGL screenshots required the Mac Metal backend after software-renderer capture timeouts.
+
 - The final static-preview scenario passed (48.4 seconds): mic/camera remain disabled, no room WebSocket is opened, and the selected female avatar survives reload and is preselected when customization reopens. Mac browser QA now uses Metal; Linux CI retains the software-renderer flags.
+
+## 16 October 2026 — production deployment
+
+- `wrangler login` succeeded for the owner account; `npm run deploy` uploaded the full Worker with static assets, ROOMS and AUTH bindings (version `e0b8d5e0-f53e-48d0-a131-86ac7f3dc4ea`) to https://hallstatt-social.elviskudo.workers.dev.
+- From the public domain, `/api/health` and `/api/auth/session` return 200, unknown API routes return 404 JSON, and media/socket routes stay behind the login gate because the hostname is not localhost.
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are still missing, so `/api/auth/google` returns 503 until the OAuth Client is created; real Google login, TURN and cross-network media remain unverified.
