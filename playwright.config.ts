@@ -11,9 +11,13 @@ export default defineConfig({
         process.env.CHROME_PATH ||
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
       args: [
-        "--use-gl=angle",
-        "--use-angle=swiftshader",
-        "--enable-unsafe-swiftshader",
+        ...(process.platform === "darwin"
+          ? ["--enable-gpu", "--use-angle=metal"]
+          : [
+              "--use-gl=angle",
+              "--use-angle=swiftshader",
+              "--enable-unsafe-swiftshader",
+            ]),
         "--use-fake-device-for-media-stream",
         "--use-fake-ui-for-media-stream",
       ],

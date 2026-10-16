@@ -23,7 +23,11 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 
 ## Implementasi saat ini
 
-- Desa low-poly orisinal dengan masjid tepi danau, kubah, menara, serta ornamen bulan sabit sesuai preferensi pengguna.
+- Enam avatar manusia berwajah dengan animasi sendi (cowok, cewek, anak, remaja, dewasa, orang tua), profil yang bisa diklik, warna baju dan kamera dekat mengikuti avatar.
+- Empat interior cutaway: working space, community hall, lakeside house, creative studio; meeting dan lock dipisahkan per interior. Dapur terbuka, sungai berjembatan dan kolam dengan semburan air mancur animasi. Collision bangunan, pohon, lampu, dapur dan furnitur berlaku di klien serta server.
+- Google OpenID Connect authorization code + PKCE, verifikasi JWKS, sesi HttpOnly 8 jam, serta profil permanen dalam AuthStore Durable Object. Di domain deployment, akses multiplayer/media wajib login; anonim hanya di localhost untuk pengujian. Login Google sungguhan belum diuji sebelum OAuth Client tersedia.
+- Desa 3D halus bergaya desa pertanian hangat dengan masjid tepi danau, kubah, menara, serta ornamen bulan sabit sesuai preferensi pengguna.
+- Lima tekstur prosedural asli (rumput, batu, kayu, genteng, plester), kanopi kebun membulat, perbukitan lembut, kebun sayur dan bunga; brief visual/provenance di `docs/art/`.
 - React + TypeScript untuk UI; Three.js untuk dunia 3D. Material dibagi dan geometri statis digabung untuk mengurangi draw call; render idle dibatasi.
 - Worker TypeScript + satu SQLite-backed Durable Object per ruang, WebSocket hibernation, attachment untuk presence, riwayat 60 pesan terakhir persisten.
 - Native WebRTC untuk audio/video peer-to-peer, perfect negotiation, koneksi ulang ICE, mic/camera opt-in. Audio dipudarkan berdasarkan jarak 12 unit, dan meeting memakai channel grup. Sender menutup peer ketika peserta keluar dari jangkauan/channel.
@@ -41,7 +45,9 @@ npx wrangler login
 npm run deploy
 ```
 
-`wrangler.jsonc` mendefinisikan Worker, static assets, binding ROOMS, dan migrasi Durable Object. Jangan deploy build preview; `npm run deploy` membangun ulang mode penuh. Gunakan HTTPS untuk media dan undangan antarperangkat. `npx wrangler tail` untuk diagnosis. Kunci versi ada pada package-lock.json.
+`wrangler.jsonc` mendefinisikan Worker, static assets, binding ROOMS/AUTH, dan migrasi Durable Object. Jangan deploy build preview; `npm run deploy` membangun ulang mode penuh. Gunakan HTTPS untuk media dan undangan antarperangkat. `npx wrangler tail` untuk diagnosis. Kunci versi ada pada package-lock.json.
+
+Panduan konfigurasi Google lengkap: [docs/cloudflare-google-setup.md](docs/cloudflare-google-setup.md). Pasang GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET sebagai Wrangler secrets setelah membuat OAuth Client Web Application dengan callback `/api/auth/callback`.
 
 TURN opsional untuk uji jaringan, dibutuhkan untuk cakupan konektivitas produksi:
 
@@ -57,7 +63,7 @@ Gunakan kredensial TURN dengan TTL singkat dan scope terbatas. Implementasi seka
 
 Ini implementasi MVP web fungsional, **belum sertifikasi production-ready penuh**. PRD merekomendasikan Bevy/Rust, workers-rs, D1, R2, dan RealtimeKit. Versi ini memakai TypeScript/Three.js agar pengalaman browser dan realtime dapat diverifikasi dalam satu proyek. Tidak ada Bevy/WASM atau Rust API yang diklaim sudah selesai. Tidak ada integrasi RealtimeKit palsu, akun demo palsu, atau peserta contoh.
 
-D1/R2 tidak diperlukan untuk geometri buatan kode dan sesi sementara saat ini. Sistem akun, katalog ruang, konfigurasi permanen lintas ruang, dan kepemilikan host permanen belum diimplementasikan. Riwayat chat memakai storage Durable Object, bukan D1. Untuk produk multi-tenant sesuai PRD, implementasikan autentikasi, token undangan/ruang yang tidak dapat ditebak, peran host permanen, D1 migrations dan kebijakan retensi. URL ruang saat ini bersifat shared-link, bukan autentikasi; ruang default dapat ditebak. Kick berlaku pada sesi, bukan ban identitas.
+D1/R2 tidak diperlukan untuk geometri buatan kode dan sesi sementara saat ini. Identitas login Google dan profil sudah diimplementasikan dalam Durable Object, tetapi katalog ruang, konfigurasi lintas ruang, dan kepemilikan host permanen belum diimplementasikan. Riwayat chat memakai storage Durable Object, bukan D1. Untuk produk multi-tenant sesuai PRD, selesaikan konfigurasi/uji OAuth Google, token undangan/ruang yang tidak dapat ditebak, peran host permanen, D1 migrations dan kebijakan retensi. URL ruang saat ini bersifat shared-link di antara pengguna login, dan ruang default dapat ditebak. Kick berlaku pada sesi, bukan ban identitas.
 
 Sebelum peluncuran publik:
 
@@ -77,6 +83,8 @@ Preview Sites bersifat privat dan hanya eksplorasi statis; frontend preview tida
 - `src/useRoom.ts`: WebSocket, presence, reconnect dan signaling.
 - `src/useMedia.ts`: media devices dan koneksi WebRTC.
 - `server/index.ts`: Worker routing dan Durable Object.
+- `server/auth.ts`: Google login, verifikasi token, sesi dan profil persisten.
+- `shared/spaces.ts`: preset avatar, interior, collision dan batas channel audio.
 - `tests/app.spec.ts`: alur browser desktop/mobile dan dua peserta.
 - `docs/`: bukti visual dan hasil verifikasi.
 

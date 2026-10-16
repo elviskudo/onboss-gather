@@ -1,4 +1,4 @@
-import { videoSubscriptions } from "./mediaPolicy";
+import { canHear, videoSubscriptions } from "./mediaPolicy";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowDownLeft,
@@ -44,6 +44,14 @@ import {
   X,
 } from "lucide-react";
 import { World, type WorldHandle } from "./World";
+import { AvatarPortrait } from "./AvatarPortrait";
+import {
+  SPACES,
+  AVATARS,
+  validAvatar,
+  type AreaId,
+  type AvatarId,
+} from "../shared/spaces";
 import { COLORS, PLACES, type Person } from "./types";
 import { useRoom } from "./useRoom";
 import { useMedia } from "./useMedia";
@@ -126,9 +134,31 @@ export default function App() {
   const [toast, setToast] = useState(""),
     [name, setName] = useState(() => stored("hallstatt-name", "Explorer")),
     [color, setColor] = useState(() => stored("hallstatt-color", COLORS[0])),
+    [avatar, setAvatar] = useState<AvatarId>(() => {
+      const a = stored("hallstatt-avatar", "man");
+      return validAvatar(a) ? a : "man";
+    }),
+    [bio, setBio] = useState(() => stored("hallstatt-bio", "")),
+    [area, setArea] = useState<AreaId>("village"),
+    [profileId, setProfileId] = useState<string | null>(null),
+    [draftAvatar, setDraftAvatar] = useState<AvatarId>(avatar),
+    [draftBio, setDraftBio] = useState(bio),
+    [auth, setAuth] = useState<{
+      required: boolean;
+      configured: boolean;
+      user: {
+        name: string;
+        profile?: {
+          name: string;
+          color: string;
+          avatar: AvatarId;
+          bio: string;
+        };
+      } | null;
+    } | null>(null),
     [panel, setPanel] = useState<"places" | "people" | "chat">("places"),
     [modal, setModal] = useState<
-      "join" | "invite" | "settings" | "help" | "meeting" | null
+      "join" | "invite" | "settings" | "help" | "meeting" | "profile" | null
     >(null),
     [place, setPlace] = useState(0),
     [quality, setQuality] = useState(() =>
@@ -161,6 +191,9 @@ export default function App() {
     id: room.id,
     name,
     color,
+    avatar,
+    bio,
+    area,
     x: pos.x,
     z: pos.z,
     mic: own?.mic || false,
@@ -179,7 +212,9 @@ export default function App() {
   const connected = room.status === "connected";
   const participants = connected ? room.people : [self];
   const inMeeting = own?.meeting === true;
-  const meetingPeople = room.people.filter((p) => p.meeting);
+  const meetingPeople = room.people.filter(
+    (p) => p.meeting && (p.area || "village") === area,
+  );
   const visibleVideoIds = videoSubscriptions(
     { ...self, camera: media.camera },
     room.people,
@@ -195,6 +230,7 @@ export default function App() {
   const nearby = room.people.filter(
     (p) =>
       p.id !== room.id &&
+      (p.area || "village") === area &&
       !p.meeting &&
       Math.hypot(p.x - pos.x, p.z - pos.z) < 12,
   );
@@ -219,16 +255,96 @@ export default function App() {
   useEffect(() => {
     if (!room.spawn) return;
     setPlace(0);
+    setArea(room.spawn.area || "village");
     position.current = { x: room.spawn.x, z: room.spawn.z };
     setPos(position.current);
     world.current?.go(room.spawn.x, room.spawn.z);
   }, [room.spawn]);
+  useEffect(() => {
+    if (STATIC_PREVIEW) return;
+    fetch("/api/auth/session")
+      .then((r) => {
+        if (!r.ok) throw new Error("session");
+        return r.json();
+      })
+      .then((data) => {
+        setAuth(data);
+        if (data?.user) {
+          const p = data.user.profile;
+          if (p) {
+            setName(p.name);
+            setDraftName(p.name);
+            setColor(p.color);
+            setDraftColor(p.color);
+            setAvatar(p.avatar);
+            setDraftAvatar(p.avatar);
+            setBio(p.bio);
+            setDraftBio(p.bio);
+          } else {
+            setName(data.user.name);
+            setDraftName(data.user.name);
+          }
+        }
+      })
+      .catch(() => {
+        setAuth({ required: true, configured: false, user: null });
+        notify("Tidak dapat memeriksa login. Silakan muat ulang.");
+      });
+  }, []);
+  function openProfile(id: string) {
+    setProfileId(id);
+    setDraftName(name);
+    setDraftColor(color);
+    setDraftAvatar(avatar);
+    setDraftBio(bio);
+    setModal("profile");
+  }
+  function enterSpace(id: string) {
+    const next = id as AreaId;
+    setArea(next);
+    setMeeting(false);
+    if (connected) room.send({ type: "area", area: next });
+    else {
+      world.current?.go(
+        next === "village" ? 3.5 : 0,
+        next === "village" ? 9 : 6,
+      );
+    }
+    setMobileMenu(false);
+  }
+  function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!draftName.trim()) return;
+    setName(draftName.trim());
+    setColor(draftColor);
+    setAvatar(draftAvatar);
+    setBio(draftBio);
+    try {
+      localStorage.setItem("hallstatt-name", draftName.trim());
+      localStorage.setItem("hallstatt-color", draftColor);
+      localStorage.setItem("hallstatt-avatar", draftAvatar);
+      localStorage.setItem("hallstatt-bio", draftBio);
+    } catch {}
+    room.send({
+      type: "profile",
+      name: draftName.trim(),
+      color: draftColor,
+      avatar: draftAvatar,
+      bio: draftBio,
+    });
+    room.updateProfile(draftName.trim(), draftColor, draftAvatar, draftBio);
+    setModal(null);
+    notify("Profil dan avatar tersimpan.");
+  }
+  const selectedProfile =
+    profileId === self.id ? self : participants.find((p) => p.id === profileId);
   function move(x: number, z: number) {
     position.current = { x, z };
     setPos({ x, z });
     room.send({ type: "move", x, z });
   }
   function go(i: number) {
+    setArea("village");
     setPlace(i);
     const p = PLACES[i];
     room.send({ type: "navigate", place: i });
@@ -241,15 +357,20 @@ export default function App() {
     if (!n) return;
     setName(n);
     setColor(draftColor);
+    setAvatar(draftAvatar);
+    setBio(draftBio);
     try {
       localStorage.setItem("hallstatt-name", n);
       localStorage.setItem("hallstatt-color", draftColor);
+      localStorage.setItem("hallstatt-avatar", draftAvatar);
+      localStorage.setItem("hallstatt-bio", draftBio);
     } catch {}
     if (!STATIC_PREVIEW) {
       media.stop();
       setPlace(0);
       world.current?.go(3.5, 9);
-      room.join(n, draftColor, roomId);
+      setArea("village");
+      room.join(n, draftColor, roomId, draftAvatar, draftBio);
     } else
       notify(
         "Your avatar is ready. This preview lets you explore on your own.",
@@ -402,7 +523,13 @@ export default function App() {
             </div>
             {participants.map((p) => (
               <div className="person-row" key={p.id}>
-                <Avatar name={p.name} color={p.color} />
+                <button
+                  className="portrait-button"
+                  aria-label={"View profile " + p.name}
+                  onClick={() => openProfile(p.id)}
+                >
+                  <AvatarPortrait avatar={p.avatar} color={p.color} />
+                </button>
                 <div>
                   <strong>
                     {p.name}
@@ -528,12 +655,10 @@ export default function App() {
           <button
             className="profile"
             onClick={() => {
-              setDraftName(name);
-              setDraftColor(color);
-              setModal("join");
+              openProfile(self.id);
             }}
           >
-            <Avatar name={name} color={color} />
+            <AvatarPortrait avatar={avatar} color={color} />
             <span>
               <strong>{name}</strong>
               <small>
@@ -595,13 +720,48 @@ export default function App() {
             </button>
           </div>
         </header>
-        <main className="scene-shell">
+        <main className="scene-shell" data-area={area}>
+          <div className="space-switcher" aria-label="Enter buildings">
+            <strong>
+              {area === "village"
+                ? "Masuk rumah"
+                : SPACES.find((s) => s.id === area)?.name}
+            </strong>
+            {area === "village" ? (
+              SPACES.map((sp) => (
+                <button
+                  key={sp.id}
+                  onClick={() => enterSpace(sp.id)}
+                  title={sp.description}
+                >
+                  <DoorOpen size={14} />
+                  {sp.name}
+                </button>
+              ))
+            ) : (
+              <>
+                <span>Meeting di ruangan ini terpisah dari ruangan lain.</span>
+                <button
+                  onClick={() => setModal(connected ? "meeting" : "join")}
+                >
+                  <Video size={14} />
+                  Meeting di sini
+                </button>
+                <button onClick={() => enterSpace("village")}>
+                  <DoorOpen size={14} />
+                  Keluar ke desa
+                </button>
+              </>
+            )}
+          </div>
           <World
             people={room.people}
             self={self}
             quality={quality}
             onMove={move}
             onReady={() => setReady(true)}
+            onPerson={openProfile}
+            onEnter={enterSpace}
             onError={() => setWorldError(true)}
             handle={world}
           />
@@ -626,11 +786,17 @@ export default function App() {
               <span /> A LITTLE WORLD. REAL CONNECTIONS.
             </div>
             <h1>
-              A little closer,
-              <br />
-              <em>wherever you are.</em>
+              {area !== "village" ? (
+                SPACES.find((s) => s.id === area)?.name
+              ) : (
+                <>
+                  A little closer,
+                  <br />
+                  <em>wherever you are.</em>
+                </>
+              )}
             </h1>
-            <p>Find your people. Find your place.</p>
+            <p>Klik orang untuk profil · Klik pintu hijau untuk masuk.</p>
           </div>
           <div className="weather-pill">
             <Sun size={21} />
@@ -643,7 +809,9 @@ export default function App() {
             <span>
               <MapPin size={15} />
             </span>
-            <strong>{PLACES[place].name}</strong>
+            <strong>
+              {SPACES.find((s) => s.id === area)?.name || PLACES[place].name}
+            </strong>
             <i />
             Open to wander
           </div>
@@ -749,7 +917,10 @@ export default function App() {
             <div className="meeting-overlay">
               <div className="meeting-top">
                 <span className="live-dot" />
-                <strong>The meeting house</strong>
+                <strong>
+                  {SPACES.find((s) => s.id === area)?.name ||
+                    "The meeting house"}
+                </strong>
                 <small>{meetingPeople.length} here</small>
                 <button
                   className="icon-button"
@@ -945,8 +1116,8 @@ export default function App() {
         const p = room.people.find((v) => v.id === pid);
         let v = 0;
         if (p && sound && p.mic) {
-          if (inMeeting && p.meeting) v = 1;
-          else if (!inMeeting && !p.meeting)
+          if (inMeeting && canHear(self, p)) v = 1;
+          else if (!inMeeting && canHear(self, p))
             v = Math.max(0, 1 - Math.hypot(p.x - pos.x, p.z - pos.z) / 12);
         }
         return <RemoteAudio key={pid} stream={stream} volume={v} />;
@@ -997,6 +1168,94 @@ export default function App() {
             >
               <X size={20} />
             </button>
+            {modal === "profile" && selectedProfile && (
+              <>
+                <div className="profile-hero">
+                  <AvatarPortrait
+                    avatar={selectedProfile.avatar}
+                    color={selectedProfile.color}
+                  />
+                </div>
+                <div className="eyebrow">VILLAGER PROFILE</div>
+                <h2 id="modal-title">{selectedProfile.name}</h2>
+                {profileId !== self.id ? (
+                  <>
+                    <p>
+                      {selectedProfile.bio || "Senang bertemu di Hallstatt."}
+                    </p>
+                    <p>
+                      {SPACES.find((s) => s.id === selectedProfile.area)
+                        ?.name || "Menjelajah desa"}{" "}
+                      ·{" "}
+                      {AVATARS.find((a) => a.id === selectedProfile.avatar)
+                        ?.label || "Cowok"}
+                    </p>
+                  </>
+                ) : (
+                  <form onSubmit={saveProfile}>
+                    <label className="input-label" htmlFor="profile-name">
+                      Nama tampilan
+                    </label>
+                    <input
+                      id="profile-name"
+                      className="text-input"
+                      value={draftName}
+                      maxLength={28}
+                      required
+                      onChange={(e) => setDraftName(e.target.value)}
+                    />
+                    <label className="input-label" htmlFor="profile-bio">
+                      Tentang kamu
+                    </label>
+                    <input
+                      id="profile-bio"
+                      className="text-input"
+                      value={draftBio}
+                      maxLength={160}
+                      placeholder="Sapa teman-temanmu…"
+                      onChange={(e) => setDraftBio(e.target.value)}
+                    />
+                    <label className="input-label">Avatar default</label>
+                    <div className="avatar-presets">
+                      {AVATARS.map((a) => (
+                        <button
+                          type="button"
+                          key={a.id}
+                          aria-label={a.label}
+                          aria-pressed={draftAvatar === a.id}
+                          onClick={() => setDraftAvatar(a.id)}
+                        >
+                          <AvatarPortrait avatar={a.id} color={draftColor} />
+                          <span>{a.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <label className="input-label">Warna baju</label>
+                    <div className="color-picker">
+                      {COLORS.map((c) => (
+                        <button
+                          type="button"
+                          key={c}
+                          aria-label={"Shirt " + c}
+                          aria-pressed={draftColor === c}
+                          style={{ background: c }}
+                          onClick={() => setDraftColor(c)}
+                        >
+                          {draftColor === c && <Check size={18} />}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="profile-draft">
+                      <AvatarPortrait avatar={draftAvatar} color={draftColor} />
+                      <span>{draftName}</span>
+                    </div>
+                    <button className="primary-button" type="submit">
+                      Simpan profil <Check size={17} />
+                    </button>
+                  </form>
+                )}
+              </>
+            )}
             {modal === "join" && (
               <>
                 <span className="modal-symbol">
@@ -1009,59 +1268,92 @@ export default function App() {
                     ? "Explore with your own name and color. This preview is a quiet, solo visit."
                     : "A name, a little color, and you’re on your way."}
                 </p>
-                <form onSubmit={join}>
-                  <label className="input-label" htmlFor="display-name">
-                    What should we call you?
-                  </label>
-                  <input
-                    id="display-name"
-                    className="text-input"
-                    required
-                    maxLength={28}
-                    value={draftName}
-                    onChange={(e) => setDraftName(e.target.value)}
-                    placeholder="Your display name"
-                  />
-                  <label className="input-label">Pick your color</label>
-                  <div className="color-picker">
-                    {COLORS.map((c) => (
-                      <button
-                        type="button"
-                        aria-label={"Choose " + c}
-                        aria-pressed={draftColor === c}
-                        key={c}
-                        style={{ background: c }}
-                        onClick={() => setDraftColor(c)}
-                      >
-                        {draftColor === c && <Check size={20} />}
-                      </button>
-                    ))}
+                {!STATIC_PREVIEW && !auth ? (
+                  <p>Memeriksa login…</p>
+                ) : !STATIC_PREVIEW && auth?.required && !auth.user ? (
+                  <div className="google-login">
+                    <a
+                      className="primary-button"
+                      href={
+                        "/api/auth/google?room=" + encodeURIComponent(roomId)
+                      }
+                    >
+                      Lanjutkan dengan Google <ArrowRight size={17} />
+                    </a>
+                    {!auth.configured && (
+                      <p>Login Google menunggu konfigurasi pemilik aplikasi.</p>
+                    )}
                   </div>
-                  <div className="avatar-preview">
-                    <Avatar
-                      name={draftName || "?"}
-                      color={draftColor}
-                      size="large"
+                ) : (
+                  <form onSubmit={join}>
+                    <label className="input-label" htmlFor="display-name">
+                      What should we call you?
+                    </label>
+                    <input
+                      id="display-name"
+                      className="text-input"
+                      required
+                      maxLength={28}
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="Your display name"
                     />
-                    <span>
-                      <strong>{draftName || "Your name"}</strong>
-                      <small>Ready for a little adventure.</small>
-                    </span>
-                    <Leaf size={20} />
-                  </div>
-                  <button className="primary-button" type="submit">
-                    {STATIC_PREVIEW
-                      ? "Save and explore"
-                      : connected
-                        ? "Re-enter village"
-                        : "Enter the village"}
-                    <ArrowRight size={17} />
-                  </button>
-                  <small className="form-note">
-                    <ShieldCheck size={13} />
-                    Mic and camera start off. You’re in control.
-                  </small>
-                </form>
+                    <label className="input-label">Pilih avatar</label>
+                    <div className="avatar-presets">
+                      {AVATARS.map((a) => (
+                        <button
+                          type="button"
+                          key={a.id}
+                          aria-label={a.label}
+                          aria-pressed={draftAvatar === a.id}
+                          onClick={() => setDraftAvatar(a.id)}
+                        >
+                          <AvatarPortrait avatar={a.id} color={draftColor} />
+                          <span>{a.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <label className="input-label">Pick your color</label>
+                    <div className="color-picker">
+                      {COLORS.map((c) => (
+                        <button
+                          type="button"
+                          aria-label={"Choose " + c}
+                          aria-pressed={draftColor === c}
+                          key={c}
+                          style={{ background: c }}
+                          onClick={() => setDraftColor(c)}
+                        >
+                          {draftColor === c && <Check size={20} />}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="avatar-preview">
+                      <Avatar
+                        name={draftName || "?"}
+                        color={draftColor}
+                        size="large"
+                      />
+                      <span>
+                        <strong>{draftName || "Your name"}</strong>
+                        <small>Ready for a little adventure.</small>
+                      </span>
+                      <Leaf size={20} />
+                    </div>
+                    <button className="primary-button" type="submit">
+                      {STATIC_PREVIEW
+                        ? "Save and explore"
+                        : connected
+                          ? "Re-enter village"
+                          : "Enter the village"}
+                      <ArrowRight size={17} />
+                    </button>
+                    <small className="form-note">
+                      <ShieldCheck size={13} />
+                      Mic and camera start off. You’re in control.
+                    </small>
+                  </form>
+                )}
               </>
             )}
             {modal === "invite" && (
@@ -1167,6 +1459,25 @@ export default function App() {
                     thoughtful tribute to Hallstatt, Austria.
                   </span>
                 </div>
+                {auth?.user && (
+                  <button
+                    className="subtle-button"
+                    onClick={async () => {
+                      media.stop();
+                      room.leave();
+                      const res = await fetch("/api/auth/logout", {
+                        method: "POST",
+                      });
+                      if (res.ok) {
+                        setAuth({ ...auth, user: null });
+                        setModal(null);
+                        notify("Kamu sudah keluar dari akun Google.");
+                      } else notify("Gagal keluar. Silakan coba lagi.");
+                    }}
+                  >
+                    Keluar akun Google · {auth.user.name}
+                  </button>
+                )}
               </>
             )}
             {modal === "help" && (

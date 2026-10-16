@@ -130,14 +130,7 @@ export function useMedia(
   signal.current = async (from, payload) => {
     const sender = current.current.people.find((p) => p.id === from);
     const me = current.current.self;
-    if (
-      !sender ||
-      from === current.current.id ||
-      !(me.meeting
-        ? sender.meeting
-        : !sender.meeting && Math.hypot(sender.x - me.x, sender.z - me.z) < 12)
-    )
-      return;
+    if (!sender || from === current.current.id || !canHear(me, sender)) return;
     const p = ensure(from);
     try {
       if (payload.description) {
@@ -170,13 +163,7 @@ export function useMedia(
   };
   useEffect(() => {
     const ids = people
-      .filter(
-        (p) =>
-          p.id !== id &&
-          (self.meeting
-            ? p.meeting
-            : !p.meeting && Math.hypot(p.x - self.x, p.z - self.z) < 12),
-      )
+      .filter((p) => canHear(self, p))
       .map((p) => p.id)
       .sort();
     for (const [pid, p] of peers.current)

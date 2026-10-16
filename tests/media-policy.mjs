@@ -39,3 +39,15 @@ test("spatial video follows the nearest active cameras and excludes meetings", (
   people[1].camera = false;
   assert.deepEqual(videoSubscriptions(receiver, people), ["02", "03", "04"]);
 });
+test("audio and video cannot cross building boundaries, including active meetings", () => {
+  const a = person(0, { area: "workspace" }),
+    b = person(1, { area: "hall" });
+  assert.equal(canHear(a, b), false);
+  assert.deepEqual(videoSubscriptions(a, [a, b]), []);
+  b.area = "workspace";
+  assert.equal(canHear(a, b), true);
+  a.meeting = false;
+  b.meeting = false;
+  b.area = "village";
+  assert.equal(canHear(a, b), false);
+});

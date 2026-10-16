@@ -2,3 +2,7 @@
 # TURN_URL=turn:your-relay.example:3478
 # TURN_USERNAME=ephemeral-username
 # TURN_CREDENTIAL=ephemeral-password
+# Google OAuth local testing only. Use wrangler secret put in production.
+# GOOGLE_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
+# GOOGLE_CLIENT_SECRET=your-secret
+# AUTH_REQUIRED=true

@@ -40,3 +40,25 @@ Not yet verified: Safari, physical phones/tablets, real microphones/cameras acro
 
 - Final protocol rerun passed, including movement to z=-23 under the shared client/server bounds. Desktop and mobile screenshots were visually inspected and both display the new mosque.
 - The exploration-preview browser test passed again (11.2 seconds): the refreshed preview screenshot shows the mosque, avatar customization works, media controls remain disabled and no room WebSocket is opened.
+
+## 16 October 2026 — human avatars, interiors and Google login
+
+- Added six original human presets, eyes/nose/ears/hair, articulated walking, live profile/bio/shirt changes, a closer follow camera and direct avatar/profile picking. Rigid human surfaces are merged per material while preserving animated joints.
+- Added working space, community hall, lakeside house and creative studio interiors with room-specific audio/meeting membership; outdoor kitchen, river/bridge and animated fountain basin. Shared collision geometry is enforced by client movement and server validation, including trunks, lamps, furniture and kitchen counters.
+- Six browser scenarios passed together (2.6 minutes): desktop/mobile UI, two-user chat/locks/kick, APIs, decoded synthetic WebRTC audio/video, live avatar/profile synchronization and isolated building meetings, and unconfigured OAuth error handling.
+- Four unit checks passed: 20-camera subscription cap, nearest spatial selection, cross-building audio/video isolation, and collision for trees/lamps/river/furniture.
+- Real WebSocket smoke tests passed with 20 connections. A second protocol scenario passed profile changes, per-building locks, blocked cross-building signaling, accepted same-building signaling, and authoritative furniture/lamp collision.
+- A separate local Worker with AUTH_REQUIRED=true rejected anonymous and forged-cookie media/socket access and forged OAuth callback state. Wrangler deployment dry-run passed with ROOMS and AUTH bindings.
+- Google authorization-code flow uses PKCE, single-use state, nonce and JOSE signature/issuer/audience/expiry verification. AuthStore persists user profiles and hashed sessions; cookies last eight hours. No real Google login has been claimed or tested: owner has not yet created the OAuth Client. Wrangler whoami confirmed the computer is still unauthenticated.
+- See cloudflare-google-setup.md for account setup and exact callback/secrets commands. No secrets are committed. Cloudflare production rollout and internet media/network tests remain pending.
+- Visual QA found the profile screenshot captured the opening animation at zero opacity. Screenshot capture now disables finite animations so the saved artifact shows the actual dialog; profile controls themselves passed the browser scenario.
+- Twenty distinct walkable arrival spots per exterior/interior were verified, so new participants do not start stacked on top of each other. Reconnect still uses the authoritative free spawn supplied by the server.
+
+## 16 October 2026 — smooth cozy village visual update
+
+User narrowed the current work to 3D visuals inspired by the farming-village atmosphere of Harvest Moon. Installed and read threejs-scene-setup, threejs-materials-lighting and create-game-assets from the supplied gamedev-skills repository. Brief and original-asset provenance are in docs/art/.
+
+Replaced faceted foliage and cone mountains with smooth orchard crowns and rolling hills; smoothed mosque domes and round props; added selective bevels to architectural geometry. Five original deterministic sRGB CanvasTextures provide grass, paving, timber grain, clay tiles and plaster detail. Geometry batches now retain UV coordinates. Added vegetable beds, flowers and a cottage fence; increased face detail and expressive head/eye proportions. Reframed the camera to keep the avatar clear of the mosque in the foreground. Existing gameplay collision remains separate from the detailed render geometry.
+
+Strict client/Worker checks and full build passed. The dedicated desktop/mobile visual scenario passed (2.0 minutes), including direct avatar-profile interaction, six preset options, visual customization, landmark navigation, entering/exiting an interior, zero horizontal overflow at 390px, and no captured JavaScript/console errors. Screenshots: cozy-overview.png, cozy-character.png, cozy-village.png, cozy-interior.png and cozy-mobile.png. Native in-app browser inspection also verified the smooth village and crop area; cozy-village.jpg records that view. Automated WebGL screenshots required the Mac Metal backend after software-renderer capture timeouts.
+- The final static-preview scenario passed (48.4 seconds): mic/camera remain disabled, no room WebSocket is opened, and the selected female avatar survives reload and is preselected when customization reopens. Mac browser QA now uses Metal; Linux CI retains the software-renderer flags.

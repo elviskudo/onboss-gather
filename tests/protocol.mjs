@@ -46,7 +46,7 @@ try {
     "hibernation ping/pong",
   );
   // The north path was walkable in the client but incorrectly clamped to z=-16 by the server.
-  for (let z = 7; z >= -23; z -= 2) send(host, { type: "move", x: 3.5, z });
+  for (let z = 7; z >= -23; z -= 2) send(host, { type: "move", x: 5.2, z });
   await wait(
     () =>
       guest.m.some((m) => m.type === "move" && m.id === host.id && m.z === -23),

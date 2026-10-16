@@ -1,8 +1,9 @@
+import { sameAudioSpace } from "../shared/spaces.ts";
 import type { Person } from "./types";
 export const MAX_REMOTE_VIDEO = 3;
 export function canHear(receiver: Person, sender: Person): boolean {
   return (
-    receiver.id !== sender.id &&
+    sameAudioSpace(receiver, sender) &&
     (receiver.meeting
       ? sender.meeting
       : !sender.meeting &&

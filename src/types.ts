@@ -1,7 +1,12 @@
+import type { AvatarId, AreaId } from "../shared/spaces";
+export { AVATARS, SPACES } from "../shared/spaces";
 export type Person = {
   id: string;
   name: string;
   color: string;
+  avatar?: AvatarId;
+  area?: AreaId;
+  bio?: string;
   x: number;
   z: number;
   mic: boolean;

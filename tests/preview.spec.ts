@@ -23,12 +23,27 @@ test("static preview keeps media and networking disabled while allowing avatar c
   ).toBeDisabled();
   await page.getByRole("button", { name: "Customize avatar" }).click();
   await page.getByLabel("What should we call you?").fill("Tari");
+  await page.getByRole("button", { name: "Cewek", exact: true }).click();
   await page.getByRole("button", { name: "Save and explore" }).click();
   await expect(page.locator(".profile")).toContainText("Tari");
   await expect(page.getByRole("status")).toContainText(
     "This preview lets you explore on your own.",
   );
   await page.getByRole("button", { name: "Dismiss notification" }).click();
-  await page.screenshot({ path: "docs/preview.png", fullPage: true });
+  await page.reload();
+  await expect(page.locator(".profile .avatar-portrait")).toHaveAttribute(
+    "aria-label",
+    "Cewek avatar",
+  );
+  await page.getByRole("button", { name: "Customize avatar" }).click();
+  await expect(
+    page.getByRole("button", { name: "Cewek", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.screenshot({
+    path: "docs/preview.png",
+    fullPage: true,
+    animations: "disabled",
+  });
   expect(sockets).toEqual([]);
 });

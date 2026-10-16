@@ -13,11 +13,13 @@
     "deploy": "npm run build && wrangler deploy",
     "build:preview": "tsc -b && vite build --mode preview",
     "test:protocol": "node tests/protocol.mjs",
-    "test:media-policy": "node --test tests/media-policy.mjs"
+    "test:media-policy": "node --test tests/media-policy.mjs",
+    "test:collision": "node --test tests/collision.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "5.3.0",
     "@fontsource/manrope": "5.3.0",
+    "jose": "6.2.12",
     "lucide-react": "1.57.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",

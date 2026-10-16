@@ -1,9 +1,10 @@
+import type { AreaId } from "../shared/spaces";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Person, Message } from "./types";
 
 type Status =
   "exploring" | "connecting" | "connected" | "reconnecting" | "offline";
-type Spawn = { x: number; z: number; revision: number };
+type Spawn = { x: number; z: number; revision: number; area?: AreaId };
 const CONNECT_TIMEOUT = 12_000;
 const PING_INTERVAL = 12_000;
 const PONG_TIMEOUT = 8_000;
@@ -23,9 +24,13 @@ export function useRoom(onNotice: (s: string) => void) {
   const attempts = useRef(0);
   const connectedBefore = useRef(false);
   const live = useRef(false);
-  const identity = useRef<{ name: string; color: string; room: string } | null>(
-    null,
-  );
+  const identity = useRef<{
+    name: string;
+    color: string;
+    room: string;
+    avatar: string;
+    bio: string;
+  } | null>(null);
   const onSignal = useRef<(from: string, payload: any) => void>(() => {});
   const notice = useRef(onNotice);
   notice.current = onNotice;
@@ -82,6 +87,8 @@ export function useRoom(onNotice: (s: string) => void) {
       url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
       url.searchParams.set("name", i.name);
       url.searchParams.set("color", i.color);
+      url.searchParams.set("avatar", i.avatar);
+      url.searchParams.set("bio", i.bio);
       const ws = new WebSocket(url);
       socket.current = ws;
       const isCurrent = () => socket.current === ws && intent.current;
@@ -91,6 +98,14 @@ export function useRoom(onNotice: (s: string) => void) {
         setPeople([]);
         setId("local");
         setLocked(false);
+        if (code === 4001) {
+          intent.current = false;
+          setStatus("offline");
+          notice.current(
+            "Login Google kedaluwarsa. Muat ulang lalu login kembali.",
+          );
+          return;
+        }
         if (code === 4003) {
           intent.current = false;
           setStatus("offline");
@@ -173,6 +188,17 @@ export function useRoom(onNotice: (s: string) => void) {
           return;
         }
         if (!live.current) return;
+        if (
+          m.type === "relocate" &&
+          Number.isFinite(m.x) &&
+          Number.isFinite(m.z)
+        )
+          setSpawn((previous) => ({
+            x: m.x,
+            z: m.z,
+            area: m.area,
+            revision: (previous?.revision ?? 0) + 1,
+          }));
         if (m.type === "state" && Array.isArray(m.people)) {
           setPeople(m.people);
           setLocked(m.locked === true);
@@ -204,12 +230,12 @@ export function useRoom(onNotice: (s: string) => void) {
   );
 
   const join = useCallback(
-    (name: string, color: string, room: string) => {
+    (name: string, color: string, room: string, avatar = "man", bio = "") => {
       retire();
       setPeople([]);
       setId("local");
       setLocked(false);
-      identity.current = { name, color, room };
+      identity.current = { name, color, room, avatar, bio };
       intent.current = true;
       attempts.current = 0;
       connectedBefore.current = false;
@@ -263,7 +289,17 @@ export function useRoom(onNotice: (s: string) => void) {
     };
   }, [connect, retire]);
 
+  const updateProfile = (
+    name: string,
+    color: string,
+    avatar: string,
+    bio: string,
+  ) => {
+    if (identity.current)
+      Object.assign(identity.current, { name, color, avatar, bio });
+  };
   return {
+    updateProfile,
     people,
     messages,
     id,
