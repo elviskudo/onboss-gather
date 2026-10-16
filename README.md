@@ -2,6 +2,8 @@
 
 Dunia sosial 3D alpine dengan UI premium, geometri orisinal, avatar, chat realtime, proximity audio, dan meeting kecil.
 
+Rilis, bukti verifikasi, dan gerbang yang belum terpenuhi: [RELEASE.md](RELEASE.md).
+
 ## Menjalankan
 
 Node 22.12+ (diverifikasi dengan Node 26), npm, dan Chrome.
@@ -86,6 +88,8 @@ Preview Sites bersifat privat dan hanya eksplorasi statis; frontend preview tida
 - `server/auth.ts`: Google login, verifikasi token, sesi dan profil persisten.
 - `shared/spaces.ts`: preset avatar, interior, collision dan batas channel audio.
 - `tests/app.spec.ts`: alur browser desktop/mobile dan dua peserta.
+- `tests/*.spec.ts`, `tests/*.mjs`: skenario browser, protokol 20 koneksi, kebijakan media, collision dan autentikasi.
+- `RELEASE.md`: catatan rilis, bukti verifikasi dan gerbang rilis.
 - `docs/`: bukti visual dan hasil verifikasi.
 
 Semua geometri desa dibuat sendiri. Font DM Sans dan Manrope didistribusikan melalui Fontsource dengan lisensi OFL; lihat `node_modules/@fontsource/*/LICENSE`. Ikon Lucide berlisensi ISC. Tidak ada aset, nama produk, atau logo Gather.town yang digunakan.
