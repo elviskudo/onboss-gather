@@ -7,6 +7,7 @@ import {
   type AuthEnv,
 } from "./auth";
 export { AuthStore } from "./auth";
+import { resolveRoom } from "../shared/room";
 import { WORLD_BOUNDS } from "../shared/world";
 import {
   walkable,
@@ -85,12 +86,14 @@ export default {
     }
     if (url.pathname.startsWith("/api/"))
       return json({ error: "Not found" }, 404);
-    if (["/", "/index.html", "/login", "/founder"].includes(url.pathname)) {
+    if (
+      ["/", "/index.html", "/login", "/founder"].includes(url.pathname) ||
+      url.pathname.startsWith("/rooms/")
+    ) {
       const session = await getSession(request, env);
       if (authRequired(request, env) && !session && url.pathname !== "/login") {
         const target = new URL("/login", url.origin);
-        if (url.searchParams.has("room"))
-          target.searchParams.set("room", url.searchParams.get("room")!);
+        target.searchParams.set("room", resolveRoom(url));
         if (url.pathname === "/founder")
           target.searchParams.set("next", "founder");
         return new Response(null, {
@@ -106,7 +109,10 @@ export default {
     }
     const res = await env.ASSETS.fetch(request);
     const headers = new Headers(res.headers);
-    if (["/", "/index.html", "/login", "/founder"].includes(url.pathname))
+    if (
+      ["/", "/index.html", "/login", "/founder"].includes(url.pathname) ||
+      url.pathname.startsWith("/rooms/")
+    )
       headers.set("Cache-Control", "no-store");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");

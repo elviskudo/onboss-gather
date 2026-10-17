@@ -8,7 +8,5 @@ export type SessionInfo = {
     profile?: { name: string; color: string; avatar: AvatarId; bio: string };
   } | null;
 };
-export const roomFromUrl = () =>
-  new URLSearchParams(location.search)
-    .get("room")
-    ?.match(/^[a-z0-9-]{1,48}$/)?.[0] || "hallstatt-village";
+import { resolveRoom } from "../shared/room";
+export const roomFromUrl = () => resolveRoom(new URL(location.href));

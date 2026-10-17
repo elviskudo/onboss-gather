@@ -7,7 +7,7 @@ test("static preview has a login gateway without starting multiplayer or downloa
   const requests: string[] = [];
   page.on("websocket", (s) => sockets.push(s.url()));
   page.on("request", (r) => requests.push(r.url()));
-  await page.goto("/?room=team-preview");
+  await page.goto("/rooms/team-preview");
   await expect(
     page.getByRole("heading", { name: "Selamat datang." }),
   ).toBeVisible();

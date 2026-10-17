@@ -2,7 +2,7 @@
   "name": "hallstatt-founder-test",
   "main": "founder-worker.ts",
   "compatibility_date": "2026-10-01",
-  "assets": {"directory":"../../dist", "binding":"ASSETS", "not_found_handling":"single-page-application", "run_worker_first":["/api/*", "/__test/*", "/", "/index.html", "/login", "/founder"]},
+  "assets": {"directory":"../../dist", "binding":"ASSETS", "not_found_handling":"single-page-application", "run_worker_first":["/api/*", "/__test/*", "/", "/index.html", "/login", "/founder", "/rooms/*"]},
   "vars": {"AUTH_REQUIRED":"true", "GOOGLE_CLIENT_ID":"local-test-client", "GOOGLE_CLIENT_SECRET":"local-test-placeholder"},
   "durable_objects":{"bindings":[{"name":"ROOMS","class_name":"Room"},{"name":"AUTH","class_name":"AuthStore"}]},
   "migrations":[{"tag":"v1","new_sqlite_classes":["Room","AuthStore"]}]

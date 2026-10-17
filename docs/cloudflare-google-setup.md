@@ -72,3 +72,9 @@ Statistik tersimpan di SQLite dalam AuthStore yang sudah ada: jumlah sesi kunjun
 Pencatatan dimulai saat fitur diterbitkan, tanpa mengarang data historis. Akun lama tercatat saat login ulang. Pengunjung yang menghapus cookie atau memakai browser lain dapat dihitung sebagai browser unik baru. Preview Sites sekarang menjadi halaman login yang menuju aplikasi lengkap Cloudflare.
 
 Jalankan `npm run test:founder` untuk uji integrasi dengan entrypoint fixture lokal terisolasi. Fixture `/__test/login` hanya ada dalam `tests/fixtures/founder-worker.ts`; tidak dipakai konfigurasi atau bundle produksi.
+
+## Undangan room bersama
+
+Undangan memakai alamat tetap `/rooms/ROOM_ID` (contoh `/rooms/hallstatt-village`), bukan ID pengguna atau sesi login. Link tersebut membawa room yang sama melewati pengalihan login dan callback OAuth. Link lama `/?room=ROOM_ID` tetap didukung. Parser room dipakai bersama oleh klien dan server, dengan validasi seluruh ID.
+
+Setelah login, akun otomatis tersambung ke multiplayer pada room tujuan; mic dan kamera tetap mengikuti pilihan pengguna. Invite friends menyalin alamat room tersebut. Room lain memakai Durable Object lain, sehingga peserta dan chat terpisah. Untuk menguji dua akun bersamaan, gunakan dua browser/profil atau perangkat dengan cookie terpisah; mengganti akun secara bergantian dalam satu sesi browser bukan dua peserta yang hadir bersamaan.

@@ -47,7 +47,9 @@ import {
 import { World, type WorldHandle } from "./World";
 import { AvatarPortrait } from "./AvatarPortrait";
 import { GoogleSignIn } from "./GoogleSignIn";
-import type { SessionInfo } from "./session";
+import { roomFromUrl, type SessionInfo } from "./session";
+import { roomPath } from "../shared/room";
+import { LIVE_ORIGIN } from "./GoogleSignIn";
 import {
   SPACES,
   AVATARS,
@@ -180,10 +182,9 @@ export default function App({
     position = useRef({ x: 3.5, z: 9 }),
     [pos, setPos] = useState(position.current),
     chatEnd = useRef<HTMLDivElement>(null);
-  const roomId =
-    new URLSearchParams(location.search)
-      .get("room")
-      ?.match(/^[a-z0-9-]{1,48}$/)?.[0] || "hallstatt-village";
+  const roomId = roomFromUrl();
+  const inviteUrl =
+    (STATIC_PREVIEW ? LIVE_ORIGIN : location.origin) + roomPath(roomId);
   const notify = (s: string) => setToast(s);
   const room = useRoom(notify);
   const own = room.people.find((p) => p.id === room.id);
@@ -296,6 +297,23 @@ export default function App({
       });
     return () => controller.abort();
   }, [signedOut]);
+  useEffect(() => {
+    if (STATIC_PREVIEW || !auth?.user) return;
+    const profile = auth.user.profile;
+    const userName = profile?.name || auth.user.name;
+    setName(userName);
+    setDraftName(userName);
+    room.join(
+      userName,
+      profile?.color || color,
+      roomId,
+      profile?.avatar || avatar,
+      profile?.bio || bio,
+    );
+    setWelcome(false);
+    return () => room.leave();
+    // Join once for this authenticated identity and room; edits use the live profile channel.
+  }, [auth?.user?.name, roomId, room.join, room.leave]);
   function openProfile(id: string) {
     setProfileId(id);
     setDraftName(name);
@@ -398,8 +416,7 @@ export default function App({
     setModal(null);
   }
   async function copy() {
-    const url = new URL(location.href);
-    url.searchParams.set("room", roomId);
+    const url = new URL(inviteUrl);
     try {
       await navigator.clipboard.writeText(url.toString());
       notify("Invitation link copied. See you in the village.");
@@ -748,7 +765,9 @@ export default function App({
               Your spaces <ChevronRight size={13} />
             </span>
             <Mountain size={17} />
-            <strong>Hallstatt village</strong>
+            <strong title={roomId}>
+              {roomId === "hallstatt-village" ? "Hallstatt village" : roomId}
+            </strong>
             <span className="private-tag">
               <Users size={11} />
               {STATIC_PREVIEW ? "Private preview" : "Shared space"}
@@ -1459,7 +1478,7 @@ export default function App({
                 <p>
                   {STATIC_PREVIEW
                     ? "This private preview is yours to explore. Live room invitations are available in the full version."
-                    : "Send a little invitation to your little escape."}
+                    : "Bagikan link room ini. Setelah login, temanmu otomatis bergabung di tempat yang sama."}
                 </p>
                 <label className="input-label" htmlFor="invite-link">
                   Your village link
@@ -1468,7 +1487,7 @@ export default function App({
                   <input
                     id="invite-link"
                     readOnly
-                    value={location.origin + "/?room=" + roomId}
+                    value={inviteUrl}
                     onFocus={(e) => e.target.select()}
                   />
                   <button aria-label="Copy invitation link" onClick={copy}>
@@ -1484,7 +1503,7 @@ export default function App({
                   <span>
                     {STATIC_PREVIEW
                       ? "This preview follows the site’s private sharing settings. Live room invitations are not enabled here."
-                      : "Anyone with this link can enter. Share it with people you trust. Up to 20 visitors per village."}
+                      : "Setiap peserta perlu login Google. Link ini menuju room yang sama, bukan sesi akunmu. Maksimal 20 peserta per room."}
                   </span>
                 </div>
               </>

@@ -7,7 +7,14 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/", "/index.html", "/login", "/founder"],
+    "run_worker_first": [
+      "/api/*",
+      "/",
+      "/index.html",
+      "/login",
+      "/founder",
+      "/rooms/*",
+    ],
   },
   "durable_objects": {
     "bindings": [

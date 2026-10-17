@@ -9,6 +9,7 @@ import {
   RotateCw,
 } from "lucide-react";
 import { GoogleSignIn } from "./GoogleSignIn";
+import { roomPath } from "../shared/room";
 import { roomFromUrl, type SessionInfo } from "./session";
 const Village = lazy(() => import("./App"));
 const Founder = lazy(() => import("./Founder"));
@@ -62,11 +63,7 @@ export default function Entry() {
         `/login?room=${encodeURIComponent(roomFromUrl())}`,
       );
     else if (session?.user && location.pathname === "/login")
-      history.replaceState(
-        null,
-        "",
-        `/?room=${encodeURIComponent(roomFromUrl())}`,
-      );
+      history.replaceState(null, "", roomPath(roomFromUrl()));
   }, [session]);
   if (!mustLogin) {
     if (location.pathname === "/founder")

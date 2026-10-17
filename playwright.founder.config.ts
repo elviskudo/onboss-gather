@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   ...config,
   testIgnore: [],
-  testMatch: "founder.spec.ts",
+  testMatch: ["founder.spec.ts", "room-invite.spec.ts"],
   use: { ...config.use, baseURL: "http://127.0.0.1:8789" },
   webServer: {
     command:

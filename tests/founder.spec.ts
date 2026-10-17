@@ -68,9 +68,7 @@ test("ordinary accounts enter the village but cannot read founder analytics or i
   ).toBe(403);
   expect((await context.request.get("/founder")).status()).toBe(403);
   await page.goto("/");
-  await expect(
-    page.getByRole("button", { name: "Enter village", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   await expect(page.locator(".founder-entry")).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Sign in with Google" }),
@@ -118,13 +116,6 @@ test("founder sees durable real visits, registrations, joins and meeting partici
       });
       const memberPage = await member.newPage();
       await memberPage.goto("/");
-      await memberPage
-        .getByRole("button", { name: "Enter village", exact: true })
-        .click();
-      await memberPage
-        .getByRole("dialog")
-        .getByRole("button", { name: "Enter the village", exact: true })
-        .click();
       await expect(memberPage.locator(".connection")).toContainText(
         "Connected",
       );

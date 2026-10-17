@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { resolveRoom, roomPath } from "../shared/room";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 export interface AuthEnv {
   AUTH: DurableObjectNamespace<AuthStore>;
@@ -167,9 +168,7 @@ export async function handleAuth(
     const state = random(),
       nonce = random(),
       verifier = random();
-    const room =
-      url.searchParams.get("room")?.match(/^[a-z0-9-]{1,48}$/)?.[0] ||
-      "hallstatt-village";
+    const room = resolveRoom(url);
     await store(env).begin(await hash(state), {
       nonce,
       verifier,
@@ -272,7 +271,7 @@ export async function handleAuth(
       });
       const headers = new Headers({
         ...noStore,
-        Location: "/?room=" + encodeURIComponent(flow.room),
+        Location: roomPath(flow.room),
       });
       headers.append(
         "Set-Cookie",
