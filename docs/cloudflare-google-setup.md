@@ -1,6 +1,6 @@
 # Cloudflare + Google login
 
-Kode backend multiplayer dan Google OpenID Connect sudah disiapkan. Deployment Cloudflare dan uji login Google sungguhan belum dilakukan karena komputer belum login Cloudflare dan OAuth Client Google belum dibuat.
+Aplikasi lengkap diterbitkan di https://hallstatt-social.elviskudo.workers.dev pada 17 Oktober 2026. Secret Google sudah tersedia di Worker. Endpoint session melaporkan konfigurasi aktif dan endpoint login mengarahkan ke Google dengan PKCE serta cookie state aman. Login sampai selesai dengan akun pengguna masih perlu dicoba pengguna.
 
 ## 1. Login Cloudflare
 
@@ -31,7 +31,7 @@ Di [Google Cloud Console](https://console.cloud.google.com/), buat/pilih project
 2. **Audience**: pilih audience yang sesuai. Selama status Testing, tambahkan akun Google penguji sebagai test users.
 3. **Data Access**: aplikasi hanya meminta `openid`, `email`, `profile`.
 4. **Clients → Create client → Web application**.
-5. Tambahkan **Authorized redirect URI** dengan domain persis hasil deployment: `https://DOMAIN-WORKER-ANDA/api/auth/callback`. Untuk custom domain, daftarkan callback domain tersebut juga. Jangan menambahkan slash setelah `callback`.
+5. Tambahkan **Authorized redirect URI** dengan domain persis hasil deployment: `https://hallstatt-social.elviskudo.workers.dev/api/auth/callback`. Untuk custom domain, daftarkan callback domain tersebut juga. Jangan menambahkan slash setelah `callback`.
 6. Simpan Client ID dan Client Secret melalui perintah berikut. Masukkan nilainya di prompt terminal, jangan di source code, screenshot, atau chat:
 
 ```sh
@@ -43,7 +43,7 @@ Konfigurasi lokal opsional menggunakan `.dev.vars` yang diabaikan Git. Set `AUTH
 
 ## 4. Verifikasi deployment
 
-Buka domain Worker → Enter village → Lanjutkan dengan Google → pilih akun → masuk desa. Buka browser/profil kedua dengan akun Google lain dan room undangan yang sama. Pastikan:
+Buka domain Worker → Enter village → Sign in with Google → pilih akun → masuk desa. Buka browser/profil kedua dengan akun Google lain dan room undangan yang sama. Pastikan:
 
 - Kedua peserta muncul dan bergerak secara realtime; perubahan profil terlihat di browser lain.
 - Pilihan avatar dan warna tersimpan; setelah login kembali, profil dipulihkan.
@@ -58,3 +58,5 @@ Login memakai authorization code, PKCE, state sekali pakai, nonce, verifikasi ta
 Voice/video saat ini native WebRTC P2P dengan maksimum tiga video remote per pengguna. Uji dua browser lokal tidak membuktikan koneksi lintas jaringan. Untuk rilis internet perlu konfigurasi TURN yang sesuai atau integrasi RealtimeKit serta pengujian perangkat/jaringan nyata. Kode sekarang Three.js/TypeScript; migrasi Rust/Bevy, D1 dan managed media dalam PRD awal masih terbuka. Preview privat Sites hanya eksplorasi, bukan deployment multiplayer Cloudflare.
 
 Referensi: [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect), [Cloudflare Wrangler](https://developers.cloudflare.com/workers/wrangler/commands/general/), [Cloudflare secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
+
+Tombol **Sign in with Google** tersedia di header dan dialog masuk. Preview Sites mengarah ke OAuth di domain Worker melalui navigasi penuh agar cookie sesi tetap di domain aplikasi lengkap. Jangan memakai callback domain preview Sites untuk OAuth Worker.

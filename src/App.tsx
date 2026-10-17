@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { World, type WorldHandle } from "./World";
 import { AvatarPortrait } from "./AvatarPortrait";
+import { GoogleSignIn } from "./GoogleSignIn";
 import {
   SPACES,
   AVATARS,
@@ -778,16 +779,21 @@ export default function App() {
                 Retry
               </button>
             )}
-            <button
-              className="sign-out-button"
-              aria-label="Sign out"
-              title="Sign out"
-              disabled={signingOut}
-              onClick={signOut}
-            >
-              <LogOut size={17} />
-              <span>{signingOut ? "Signing out…" : "Sign out"}</span>
-            </button>
+            {(STATIC_PREVIEW || (auth?.configured && !auth.user)) && (
+              <GoogleSignIn room={roomId} preview={STATIC_PREVIEW} />
+            )}
+            {(STATIC_PREVIEW || auth?.user) && (
+              <button
+                className="sign-out-button"
+                aria-label="Sign out"
+                title="Sign out"
+                disabled={signingOut}
+                onClick={signOut}
+              >
+                <LogOut size={17} />
+                <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+              </button>
+            )}
             <button
               className="invite-button"
               onClick={() => setModal("invite")}
@@ -1355,18 +1361,20 @@ export default function App() {
                     ? "Explore with your own name and color. This preview is a quiet, solo visit."
                     : "A name, a little color, and you’re on your way."}
                 </p>
+                {STATIC_PREVIEW && (
+                  <div className="google-login">
+                    <GoogleSignIn room={roomId} preview />
+                    <p>
+                      Masuk ke aplikasi Cloudflare untuk multiplayer dan
+                      meeting.
+                    </p>
+                  </div>
+                )}
                 {!STATIC_PREVIEW && !auth ? (
                   <p>Memeriksa login…</p>
                 ) : !STATIC_PREVIEW && auth?.required && !auth.user ? (
                   <div className="google-login">
-                    <a
-                      className="primary-button"
-                      href={
-                        "/api/auth/google?room=" + encodeURIComponent(roomId)
-                      }
-                    >
-                      Lanjutkan dengan Google <ArrowRight size={17} />
-                    </a>
+                    {auth.configured && <GoogleSignIn room={roomId} />}
                     {!auth.configured && (
                       <p>Login Google menunggu konfigurasi pemilik aplikasi.</p>
                     )}

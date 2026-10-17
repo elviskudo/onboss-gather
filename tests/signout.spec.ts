@@ -33,7 +33,7 @@ test("account sign out revokes the session, removes the world and offers sign in
   await expect(page.locator("canvas")).toHaveCount(0);
   await page.getByRole("button", { name: "Masuk kembali" }).click();
   await expect(
-    page.getByRole("link", { name: "Lanjutkan dengan Google" }),
+    page.getByRole("dialog").getByRole("link", { name: "Sign in with Google" }),
   ).toBeVisible();
 });
 test("failed logout does not claim that the account session ended", async ({

@@ -2134,3 +2134,48 @@ kbd {
     padding: 28px;
   }
 }
+
+.google-sign-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 10px 14px;
+  border: 1px solid #747775;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f1f1f;
+  font:
+    500 13px "Manrope",
+    sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.google-sign-in:hover {
+  background: #f2f5fc;
+}
+.google-sign-in:focus-visible {
+  outline: 3px solid #a8c7fa;
+  outline-offset: 3px;
+}
+.google-sign-in svg {
+  flex-shrink: 0;
+}
+.google-login .google-sign-in {
+  width: 100%;
+  margin: 12px 0;
+}
+.google-login p {
+  font-size: 12px;
+}
+@media (max-width: 540px) {
+  .top-actions .google-sign-in {
+    padding: 8px;
+    gap: 6px;
+    font-size: 10px;
+  }
+  .top-actions .connection {
+    display: none;
+  }
+}
