@@ -1,3 +1,6 @@
+import { createFarmWorld } from "./FarmWorld";
+import { FARM_BUILDINGS } from "../shared/farm";
+import type { SpaceId } from "../shared/space";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
   createCozyTextures,
@@ -19,6 +22,7 @@ export type WorldHandle = {
   home: () => void;
 };
 type Props = {
+  space?: SpaceId;
   board: Board | null;
   onBoard: () => void;
   people: Person[];
@@ -33,6 +37,7 @@ type Props = {
 };
 
 export function World({
+  space = "space-1",
   board,
   onBoard,
   people,
@@ -58,6 +63,7 @@ export function World({
   live.current = { people, self, onMove, onPerson, onEnter, board, onBoard };
   useEffect(() => {
     const el = container.current!;
+    let disposed = false;
     let renderer: T.WebGLRenderer;
     try {
       renderer = new T.WebGLRenderer({
@@ -152,7 +158,7 @@ export function World({
     scene.fog = new T.Fog("#c8e2df", 110, 240);
     const camera = new T.PerspectiveCamera(36, 1, 0.1, 350);
     let angle = -0.45,
-      zoom = 24;
+      zoom = space === "space-2" ? 40 : 24;
     const center = new T.Vector3(self.x, 0, self.z);
     const desiredCenter = new T.Vector3(self.x, 0, self.z);
     const ambient = new T.HemisphereLight("#d5edff", "#819a52", 1.65);
@@ -782,13 +788,17 @@ export function World({
     }
     batchStatic(scene);
     const exterior = scene.children.filter((o) => !(o instanceof T.Light));
-    const doors: T.Mesh[] = [];
-    for (const sp of SPACES) {
-      const door = box(1.5, 2.5, 0.22, "#679e86", sp.x, 1.85, sp.z);
-      door.userData.area = sp.id;
-      doors.push(door);
-      exterior.push(door);
-    }
+    const farm = space === "space-2" ? createFarmWorld() : null;
+    if (farm) scene.add(farm.group);
+    const doors: T.Object3D[] = [];
+    if (farm) doors.push(...farm.group.children.filter((o) => o.userData.area));
+    else
+      for (const sp of SPACES) {
+        const door = box(1.5, 2.5, 0.22, "#679e86", sp.x, 1.85, sp.z);
+        door.userData.area = sp.id;
+        doors.push(door);
+        exterior.push(door);
+      }
     const interior = new T.Group();
     scene.add(interior);
     box(20, 0.6, 17, "#c9b997", 0, 0.25, 0, interior);
@@ -895,7 +905,7 @@ export function World({
     const destination = new T.Vector3();
     function valid(x: number, z: number) {
       return (
-        walkable(x, z, live.current.self.area) &&
+        walkable(x, z, live.current.self.area, space) &&
         personClear(
           { ...live.current.self, x: px, z: pz },
           x,
@@ -1003,7 +1013,7 @@ export function World({
       },
       home() {
         angle = -0.45;
-        zoom = 24;
+        zoom = space === "space-2" ? 40 : 24;
         desiredCenter.set(px, 0, pz);
       },
     };
@@ -1022,9 +1032,10 @@ export function World({
         return;
       }
       const outdoors = (live.current.self.area || "village") === "village";
-      for (const o of exterior) o.visible = outdoors;
+      for (const o of exterior) o.visible = outdoors && space === "space-1";
+      if (farm) farm.group.visible = outdoors;
       interior.visible = !outdoors;
-      if (outdoors) {
+      if (outdoors && space === "space-1") {
         for (let i = 0; i < 72; i++) {
           const t = (now * 0.0004 + i / 72) % 1,
             a = i * 2.399,
@@ -1218,8 +1229,21 @@ export function World({
       raf = requestAnimationFrame(frame);
     }
     raf = requestAnimationFrame(frame);
-    onReady();
+    if (farm)
+      void farm.ready
+        .then(() => {
+          if (!disposed) {
+            renderer.domElement.dataset.assetsLoaded = "true";
+            onReady();
+          }
+        })
+        .catch(() => {
+          if (!disposed) onError();
+        });
+    else onReady();
     return () => {
+      disposed = true;
+      farm?.dispose();
       cancelAnimationFrame(raf);
       resize.disconnect();
       window.removeEventListener("keydown", down);
@@ -1252,6 +1276,6 @@ export function World({
     };
     // Rebuild only for graphics quality. Live participant data is read from refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quality]);
+  }, [quality, space]);
   return <div className="world-canvas" ref={container} />;
 }

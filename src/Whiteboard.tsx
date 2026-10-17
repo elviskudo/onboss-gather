@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Trash2, X } from "lucide-react";
+import { Send, Trash2, X, Eraser, PenLine } from "lucide-react";
 import type { Board, BoardStroke } from "../shared/social";
 import type { AreaId } from "../shared/spaces";
 import { paintBoard } from "./boardPaint";
@@ -21,6 +21,7 @@ export function Whiteboard({
   const [color, setColor] = useState("#294d3e"),
     [text, setText] = useState(""),
     [clear, setClear] = useState(false),
+    [erase, setErase] = useState(false),
     [error, setError] = useState("");
   const current = board?.area === area ? board : null;
   useEffect(() => {
@@ -71,6 +72,20 @@ export function Whiteboard({
           </button>
         </header>
         <div className="board-tools">
+          <button
+            aria-label="Mode pena"
+            aria-pressed={!erase}
+            onClick={() => setErase(false)}
+          >
+            <PenLine size={16} /> Pena
+          </button>
+          <button
+            aria-label="Mode penghapus"
+            aria-pressed={erase}
+            onClick={() => setErase(true)}
+          >
+            <Eraser size={16} /> Penghapus
+          </button>
           <div>
             {["#294d3e", "#c87855", "#4285f4", "#222222"].map((c) => (
               <button
@@ -92,7 +107,7 @@ export function Whiteboard({
             title={
               host
                 ? "Bersihkan papan bersama"
-                : "Hanya host dapat membersihkan papan"
+                : "Host atau founder dapat membersihkan seluruh papan"
             }
             onClick={() => setClear(true)}
           >
@@ -106,6 +121,31 @@ export function Whiteboard({
           aria-label="Kanvas papan tulis bersama"
           onPointerDown={(e) => {
             if (!current) return;
+            if (erase) {
+              const [x, y] = point(e);
+              const stroke = current.strokes
+                .slice()
+                .reverse()
+                .find((s) =>
+                  s.points.some((p, i) => {
+                    const q = s.points[Math.max(0, i - 1)];
+                    const dx = (p[0] - q[0]) * 900,
+                      dy = (p[1] - q[1]) * 450,
+                      px = (x - q[0]) * 900,
+                      py = (y - q[1]) * 450;
+                    const t = Math.max(
+                      0,
+                      Math.min(
+                        1,
+                        (dx * px + dy * py) / (dx * dx + dy * dy || 1),
+                      ),
+                    );
+                    return Math.hypot(px - t * dx, py - t * dy) < 16;
+                  }),
+                );
+              if (stroke) submit({ type: "board-delete", id: stroke.id });
+              return;
+            }
             e.currentTarget.setPointerCapture(e.pointerId);
             draft.current = {
               id: crypto.randomUUID(),
@@ -148,6 +188,13 @@ export function Whiteboard({
             <article key={n.id}>
               <p>{n.text}</p>
               <small>{n.author}</small>
+              <button
+                className="delete-note"
+                aria-label={"Hapus catatan " + n.text.slice(0, 40)}
+                onClick={() => submit({ type: "board-delete", id: n.id })}
+              >
+                <Trash2 size={14} /> Hapus
+              </button>
             </article>
           ))}
           {!current?.notes.length && (

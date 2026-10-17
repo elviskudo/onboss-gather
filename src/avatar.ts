@@ -2,7 +2,7 @@ import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { AVATARS } from "../shared/spaces";
 import type { Person } from "./types";
-/** Original articulated human model with age-specific proportions and facial features. */
+/** Original articulated human model with age-specific silhouettes and a deliberately featureless face. */
 export function createHuman(
   p: Person,
   material: (color: string) => T.Material,
@@ -16,9 +16,9 @@ export function createHuman(
   body.scale.setScalar(preset.scale);
   const skin = preset.skin,
     hair = preset.hair,
-    female = preset.id === "woman",
+    female = ["woman", "niqab", "girl"].includes(preset.id),
     elder = preset.id === "elder",
-    child = preset.id === "child";
+    child = preset.id === "child" || preset.id === "girl";
   function ellipsoid(
     parent: T.Object3D,
     c: string,
@@ -67,31 +67,30 @@ export function createHuman(
   head.position.set(0, 2.1, 0);
   head.scale.set(1.24, 1.16, 1.24);
   body.add(head);
-  ellipsoid(head, skin, 0, 0.04, 0, child ? 0.255 : 0.23, 0.29, 0.215);
-  ellipsoid(head, hair, 0, 0.2, -0.035, 0.238, 0.19, 0.215);
   if (female) {
-    ellipsoid(head, hair, -0.2, 0.02, -0.09, 0.085, 0.29, 0.15);
-    ellipsoid(head, hair, 0.2, 0.02, -0.09, 0.085, 0.29, 0.15);
-    ellipsoid(head, hair, 0.04, 0.2, -0.22, 0.16, 0.17, 0.16);
-  }
-  for (const side of [-1, 1]) {
-    ellipsoid(head, skin, side * 0.233, 0.025, 0, 0.047, 0.078, 0.048);
-    ellipsoid(head, "#f7f4e8", side * 0.085, 0.08, 0.193, 0.056, 0.044, 0.024);
-    ellipsoid(head, "#302b28", side * 0.085, 0.08, 0.213, 0.027, 0.037, 0.014);
-    ellipsoid(head, hair, side * 0.085, 0.14, 0.19, 0.058, 0.014, 0.018);
-    if (elder) {
-      const glasses = new T.Mesh(
-        new T.TorusGeometry(0.065, 0.008, 5, 20),
-        material("#62645f"),
+    ellipsoid(head, p.color, 0, 0.02, -0.02, 0.29, 0.38, 0.27);
+    ellipsoid(head, p.color, 0, -0.4, -0.035, 0.35, 0.35, 0.24);
+    ellipsoid(head, skin, 0, 0.015, 0.218, 0.19, 0.25, 0.075);
+    if (preset.id === "niqab")
+      ellipsoid(head, p.color, 0, -0.11, 0.28, 0.215, 0.19, 0.04);
+  } else {
+    ellipsoid(head, skin, 0, 0.04, 0, child ? 0.255 : 0.23, 0.29, 0.215);
+    ellipsoid(head, hair, 0, 0.2, -0.035, 0.238, 0.19, 0.215);
+    for (const side of [-1, 1])
+      ellipsoid(head, skin, side * 0.233, 0.025, 0, 0.047, 0.078, 0.048);
+    if (preset.id === "adult" || elder)
+      ellipsoid(
+        head,
+        elder ? "#eeeeE8" : "#20221f",
+        0,
+        -0.15,
+        0.17,
+        0.205,
+        elder ? 0.21 : 0.18,
+        0.115,
       );
-      glasses.position.set(side * 0.085, 0.082, 0.223);
-      head.add(glasses);
-    }
   }
-  ellipsoid(head, skin, 0, 0.004, 0.217, 0.04, 0.06, 0.051);
-  ellipsoid(head, "#955f50", 0, -0.105, 0.194, 0.06, 0.012, 0.017);
-  if (preset.id === "adult")
-    ellipsoid(head, hair, 0, -0.16, 0.114, 0.17, 0.105, 0.103);
+  root.userData.faceless = true;
   const limbs: T.Group[] = [];
   const knees: T.Group[] = [];
   for (const side of [-1, 1]) {

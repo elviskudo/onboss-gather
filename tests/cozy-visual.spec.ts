@@ -41,7 +41,7 @@ test("smooth farming village renders, profiles work, and interiors stay navigabl
   await person.click();
   await expect(
     page.getByRole("dialog").locator(".avatar-presets button"),
-  ).toHaveCount(6);
+  ).toHaveCount(8);
   await page.getByRole("button", { name: "Cewek", exact: true }).click();
   await page.getByRole("button", { name: "Simpan profil" }).click();
   await page.screenshot({

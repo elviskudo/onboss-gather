@@ -7,6 +7,8 @@ import {
   type AuthEnv,
 } from "./auth";
 export { AuthStore } from "./auth";
+import { resolveSpace, type SpaceId } from "../shared/space";
+import { COLORS, validColor } from "../shared/palette";
 import { resolveRoom } from "../shared/room";
 import {
   personClear,
@@ -30,6 +32,7 @@ import { DurableObject } from "cloudflare:workers";
 interface Env extends AuthEnv {
   ROOMS: DurableObjectNamespace<Room>;
   ASSETS: Fetcher;
+  PRESENCE_TTL_MS?: string;
   TURN_URL?: string;
   TURN_USERNAME?: string;
   TURN_CREDENTIAL?: string;
@@ -43,6 +46,8 @@ type Attachment = {
   expires?: number;
   sessionKey?: string;
   lastAuthCheck?: number;
+  lastSeen?: number;
+  founder?: boolean;
 };
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -81,17 +86,23 @@ export default {
       if (authRequired(request, env) && !session)
         return json({ error: "Google login required" }, 401);
       const headers = new Headers(request.headers);
+      const space = resolveSpace(url);
+      headers.set("X-World-Space", space);
       headers.delete("X-User-Id");
       headers.delete("X-Session-Expires");
       headers.delete("X-Session-Key");
+      headers.delete("X-Founder");
       if (session) {
+        headers.set("X-Founder", isFounder(session.user) ? "true" : "false");
         headers.set("X-Session-Key", await sessionKey(request));
         headers.set("X-User-Id", session.user.id);
         headers.set("X-Session-Expires", String(session.expires));
       }
-      return env.ROOMS.get(env.ROOMS.idFromName(match[1])).fetch(
-        new Request(request, { headers }),
-      );
+      return env.ROOMS.get(
+        env.ROOMS.idFromName(
+          match[1] + (space === "space-2" ? ":space-2" : ""),
+        ),
+      ).fetch(new Request(request, { headers }));
     }
     if (url.pathname.startsWith("/api/"))
       return json({ error: "Not found" }, 404);
@@ -103,6 +114,8 @@ export default {
       if (authRequired(request, env) && !session && url.pathname !== "/login") {
         const target = new URL("/login", url.origin);
         target.searchParams.set("room", resolveRoom(url));
+        if (resolveSpace(url) === "space-2")
+          target.searchParams.set("space", "space-2");
         if (url.pathname === "/founder")
           target.searchParams.set("next", "founder");
         return new Response(null, {
@@ -137,6 +150,7 @@ export default {
   },
 };
 export class Room extends DurableObject<Env> {
+  space: SpaceId = "space-1";
   locked = false;
   locks: Record<string, boolean> = {};
   history: { id: string; name: string; text: string; at: number }[] = [];
@@ -147,17 +161,80 @@ export class Room extends DurableObject<Env> {
       new WebSocketRequestResponsePair("ping", "pong"),
     );
     ctx.blockConcurrencyWhile(async () => {
+      this.space = (await ctx.storage.get<SpaceId>("worldSpace")) || "space-1";
       this.locked = (await ctx.storage.get<boolean>("locked")) ?? false;
       this.locks = (await ctx.storage.get<Record<string, boolean>>(
         "locks",
       )) ?? { village: this.locked };
       this.history = (await ctx.storage.get<typeof this.history>("chat")) ?? [];
+      if (ctx.getWebSockets().length) {
+        await this.prunePresence();
+        if (!(await ctx.storage.getAlarm()))
+          await ctx.storage.setAlarm(Date.now() + 60000);
+      }
     });
   }
   sockets() {
     return this.ctx
       .getWebSockets()
       .filter((s) => s.readyState === WebSocket.OPEN);
+  }
+  async prunePresence(now = Date.now()) {
+    const ttl = Math.max(1000, Number(this.env.PRESENCE_TTL_MS) || 180000);
+    const seen = new Set<string>();
+    const active = this.sockets().sort(
+      (a, b) =>
+        (b.deserializeAttachment() as Attachment).joined -
+        (a.deserializeAttachment() as Attachment).joined,
+    );
+    for (const ws of active) {
+      const a = ws.deserializeAttachment() as Attachment;
+      const heard = Math.max(
+        a.lastSeen || a.joined,
+        this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() || 0,
+      );
+      if (
+        (a.expires && a.expires <= now) ||
+        now - heard > ttl ||
+        (a.userId && seen.has(a.userId))
+      )
+        ws.close(
+          a.userId && seen.has(a.userId)
+            ? 4004
+            : a.expires && a.expires <= now
+              ? 4001
+              : 4005,
+          "Presence expired or superseded",
+        );
+      else if (a.userId) seen.add(a.userId);
+    }
+    this.normalizeHost();
+  }
+  normalizeHost() {
+    const sockets = this.sockets().sort(
+      (a, b) =>
+        (a.deserializeAttachment() as Attachment).joined -
+        (b.deserializeAttachment() as Attachment).joined,
+    );
+    const host =
+      sockets.find(
+        (s) => (s.deserializeAttachment() as Attachment).person.host,
+      ) || sockets[0];
+    for (const socket of sockets) {
+      const a = socket.deserializeAttachment() as Attachment;
+      if (a.person.host !== (socket === host)) {
+        a.person.host = socket === host;
+        socket.serializeAttachment(a);
+      }
+    }
+  }
+  async alarm() {
+    return this.ctx.blockConcurrencyWhile(async () => {
+      await this.prunePresence();
+      this.sync();
+      if (this.sockets().length)
+        await this.ctx.storage.setAlarm(Date.now() + 60000);
+    });
   }
   people() {
     return this.sockets().map(
@@ -192,27 +269,51 @@ export class Room extends DurableObject<Env> {
     return this.ctx.blockConcurrencyWhile(() => this.admit(request));
   }
   async admit(request: Request) {
+    if (
+      request.headers.get("X-World-Space") === "space-2" &&
+      this.space !== "space-2"
+    ) {
+      this.space = "space-2";
+      await this.ctx.storage.put("worldSpace", this.space);
+    }
+    await this.prunePresence();
+    const userId = request.headers.get("X-User-Id");
+    const duplicates = userId
+      ? this.sockets().filter(
+          (ws) => (ws.deserializeAttachment() as Attachment).userId === userId,
+        )
+      : [];
+    const previous = duplicates
+      .map((ws) => ws.deserializeAttachment() as Attachment)
+      .sort((a, b) => b.joined - a.joined)[0];
+    for (const ws of duplicates) ws.close(4004, "Account connection replaced");
     if (this.sockets().length >= 20)
       return json({ error: "This village is full. Try again shortly." }, 503);
     const u = new URL(request.url);
     const name =
       (u.searchParams.get("name") || "Guest").trim().slice(0, 28) || "Guest";
     const color = u.searchParams.get("color") || "#c87855";
-    const allowed = [
-      "#c87855",
-      "#628c7a",
-      "#798ab6",
-      "#bd8bba",
-      "#d6ac5b",
-      "#6aabb2",
-    ];
+    const allowed = COLORS;
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
-    const spawn = spawnPoint("village", this.people());
+    const spawn = spawnPoint("village", this.people(), this.space);
     const person: Person = {
-      id: crypto.randomUUID(),
+      id: userId
+        ? "u_" +
+          Array.from(
+            new Uint8Array(
+              await crypto.subtle.digest(
+                "SHA-256",
+                new TextEncoder().encode(this.ctx.id.toString() + userId),
+              ),
+            ),
+          )
+            .slice(0, 16)
+            .map((n) => n.toString(16).padStart(2, "0"))
+            .join("")
+        : crypto.randomUUID(),
       name,
-      color: allowed.includes(color) ? color : allowed[0],
+      color: validColor(color) ? color.toLowerCase() : allowed[0],
       avatar: validAvatar(u.searchParams.get("avatar"))
         ? (u.searchParams.get("avatar") as Person["avatar"])
         : "man",
@@ -223,16 +324,45 @@ export class Room extends DurableObject<Env> {
       mic: false,
       camera: false,
       meeting: false,
-      host: this.sockets().length === 0,
+      host: previous?.person.host || this.sockets().length === 0,
+      connection: crypto.randomUUID(),
     };
-    const userId = request.headers.get("X-User-Id");
+    if (previous) {
+      person.area = previous.person.area || "village";
+      const point = previous.person.seat
+        ? freePoint(
+            person.area,
+            this.people(),
+            previous.person,
+            person.id,
+            this.space,
+          )
+        : previous.person;
+      const position =
+        point || spawnPoint(person.area, this.people(), this.space);
+      Object.assign(
+        person,
+        { x: position.x, z: position.z },
+        {
+          id: person.id,
+          connection: person.connection,
+          host: person.host,
+          mic: false,
+          camera: false,
+          meeting: false,
+          seat: undefined,
+        },
+      );
+      person.name = name;
+      person.color = validColor(color) ? color : COLORS[0];
+    }
     if (userId)
       await this.env.AUTH.get(this.env.AUTH.idFromName("identity")).joined(
         userId,
-        u.pathname.split("/")[3],
-        person.id,
+        u.pathname.split("/")[3] + (this.space === "space-2" ? "/space-2" : ""),
+        person.connection!,
       );
-    if (person.host) {
+    if (person.host && !previous && this.sockets().length === 0) {
       this.locked = false;
       this.locks = {};
       await this.ctx.storage.put("locks", {});
@@ -241,6 +371,8 @@ export class Room extends DurableObject<Env> {
     server.serializeAttachment({
       person,
       last: Date.now(),
+      lastSeen: Date.now(),
+      founder: request.headers.get("X-Founder") === "true",
       count: 0,
       joined: Date.now(),
       userId: request.headers.get("X-User-Id") || undefined,
@@ -248,6 +380,8 @@ export class Room extends DurableObject<Env> {
       sessionKey: request.headers.get("X-Session-Key") || undefined,
     } satisfies Attachment);
     this.ctx.acceptWebSocket(server);
+    if (!(await this.ctx.storage.getAlarm()))
+      await this.ctx.storage.setAlarm(Date.now() + 60000);
     server.send(
       JSON.stringify({
         type: "welcome",
@@ -282,8 +416,9 @@ export class Room extends DurableObject<Env> {
         : undefined;
     const point =
       seat ||
-      (near && freePoint(area || "village", others, near, a.person.id)) ||
-      spawnPoint(area || "village", others);
+      (near &&
+        freePoint(area || "village", others, near, a.person.id, this.space)) ||
+      spawnPoint(area || "village", others, this.space);
     Object.assign(a.person, {
       area,
       meeting,
@@ -333,11 +468,11 @@ export class Room extends DurableObject<Env> {
     )
       return;
     if (m.type === "board-note" && !note) return;
-    if (m.type === "board-clear" && !a.person.host) {
+    if (m.type === "board-clear" && !a.person.host && !a.founder) {
       ws.send(
         JSON.stringify({
           type: "error",
-          message: "Hanya host yang dapat membersihkan papan.",
+          message: "Hanya host atau founder yang dapat membersihkan papan.",
         }),
       );
       return;
@@ -364,6 +499,10 @@ export class Room extends DurableObject<Env> {
             author: a.person.name,
             text: note,
           });
+        } else if (m.type === "board-delete") {
+          if (typeof m.id !== "string") return b;
+          b.strokes = b.strokes.filter((s) => s.id !== m.id);
+          b.notes = b.notes.filter((n) => n.id !== m.id);
         } else if (m.type === "board-clear") {
           if (m.revision !== b.revision)
             throw Error(
@@ -397,12 +536,14 @@ export class Room extends DurableObject<Env> {
     return this.ctx.blockConcurrencyWhile(() => this.receive(ws, message));
   }
   async receive(ws: WebSocket, message: string | ArrayBuffer) {
+    if (ws.readyState !== WebSocket.OPEN) return;
     if (typeof message !== "string" || message.length > 16384) {
       ws.close(1009, "Message too large");
       return;
     }
     const a = ws.deserializeAttachment() as Attachment;
     const now = Date.now();
+    a.lastSeen = now;
     if (a.expires && a.expires <= now) {
       ws.close(4001, "Login expired");
       return;
@@ -623,7 +764,7 @@ export class Room extends DurableObject<Env> {
           if (
             Math.hypot(x - a.person.x, z - a.person.z) <= 3 &&
             !a.person.seat &&
-            walkable(x, z, a.person.area) &&
+            walkable(x, z, a.person.area, this.space) &&
             personClear(a.person, x, z, this.people())
           ) {
             a.person.x = x;
@@ -667,6 +808,7 @@ export class Room extends DurableObject<Env> {
           spawnPoint(
             m.area,
             this.people().filter((p) => p.id !== a.person.id),
+            this.space,
           ),
         );
         ws.send(
@@ -683,19 +825,27 @@ export class Room extends DurableObject<Env> {
         a.person.meeting = false;
         a.person.seat = undefined;
         if (Number.isInteger(m.place) && m.place >= 0 && m.place < 4) {
-          const points = [
-            [3.5, 9],
-            [21, 8],
-            [-15, 14],
-            [-13, -10],
-          ];
+          const points =
+            this.space === "space-2"
+              ? [
+                  [3.5, 9],
+                  [9, 15],
+                  [-12, 6],
+                  [-11, -4],
+                ]
+              : [
+                  [3.5, 9],
+                  [21, 8],
+                  [-15, 14],
+                  [-13, -10],
+                ];
           const near = {
             ...a.person,
             x: points[m.place][0],
             z: points[m.place][1],
           };
           const clear =
-            walkable(near.x, near.z, "village") &&
+            walkable(near.x, near.z, "village", this.space) &&
             !this.people().some(
               (p) =>
                 p.id !== a.person.id &&
@@ -705,10 +855,17 @@ export class Room extends DurableObject<Env> {
           const point =
             (clear
               ? near
-              : freePoint("village", this.people(), near, a.person.id)) ||
+              : freePoint(
+                  "village",
+                  this.people(),
+                  near,
+                  a.person.id,
+                  this.space,
+                )) ||
             spawnPoint(
               "village",
               this.people().filter((p) => p.id !== a.person.id),
+              this.space,
             );
           a.person.x = point.x;
           a.person.z = point.z;
@@ -794,11 +951,15 @@ export class Room extends DurableObject<Env> {
                 : !recipient.meeting &&
                   Math.hypot(sender.x - recipient.x, sender.z - recipient.z) <
                     12);
-            if (eligible)
+            if (
+              eligible &&
+              (!m.toConnection || m.toConnection === recipient.connection)
+            )
               target.send(
                 JSON.stringify({
                   type: "signal",
                   from: sender.id,
+                  connection: sender.connection,
                   payload: m.payload,
                 }),
               );
@@ -821,10 +982,20 @@ export class Room extends DurableObject<Env> {
   }
   async closeSocket(ws: WebSocket) {
     const departed = ws.deserializeAttachment() as Attachment | null;
-    if (departed) await this.ctx.storage.delete("invite:" + departed.person.id);
+    if (
+      departed &&
+      !this.sockets().some(
+        (s) =>
+          s !== ws &&
+          (s.deserializeAttachment() as Attachment).person.id ===
+            departed.person.id,
+      )
+    )
+      await this.ctx.storage.delete("invite:" + departed.person.id);
     try {
       ws.close();
     } catch {}
+    this.normalizeHost();
     const remaining = this.sockets()
       .filter((s) => s !== ws)
       .sort(

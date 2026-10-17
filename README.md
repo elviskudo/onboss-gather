@@ -25,9 +25,12 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 
 ## Implementasi saat ini
 
-- Enam avatar manusia berwajah dengan animasi sendi (cowok, cewek, anak, remaja, dewasa, orang tua), profil yang bisa diklik, warna baju dan kamera dekat mengikuti avatar.
+- Delapan avatar manusia tanpa fitur wajah: cowok, perempuan berhijab, anak, remaja, dewasa berjenggot hitam, orang tua berjenggot putih, cadar, dan anak berhijab. Profil dapat diklik, tersedia 24 warna baju, dan kamera mengikuti avatar.
+- Pemilih Space 1 (Hallstatt) dan Space 2 (Harvest Farm). Space 2 memakai aset atlas unggahan pengguna; peserta, chat, meeting, dan papan tulis terpisah per room/space. Tautan undangan membawa room dan space melewati login Google.
+- Satu kehadiran per akun dalam room/space: koneksi baru menggantikan koneksi lama dengan ID avatar tetap. Tab lama berhenti reconnect otomatis; tombol Retry memindahkan koneksi kembali. Presence idle dibersihkan lewat lease/heartbeat.
+- Papan tulis tiap rumah mendukung pena, penghapus per coretan, hapus catatan, dan pembersihan seluruh papan oleh host atau founder dengan konfirmasi.
 - Empat interior cutaway: working space, community hall, lakeside house, creative studio; meeting dan lock dipisahkan per interior. Dapur terbuka, sungai berjembatan dan kolam dengan semburan air mancur animasi. Collision bangunan, pohon, lampu, dapur dan furnitur berlaku di klien serta server.
-- Google OpenID Connect authorization code + PKCE, verifikasi JWKS, sesi HttpOnly 8 jam, serta profil permanen dalam AuthStore Durable Object. Di domain deployment, akses multiplayer/media wajib login; anonim hanya di localhost untuk pengujian. Login Google sungguhan belum diuji sebelum OAuth Client tersedia.
+- Google OpenID Connect authorization code + PKCE, verifikasi JWKS, sesi HttpOnly 8 jam, serta profil permanen dalam AuthStore Durable Object. Di domain deployment, akses multiplayer/media wajib login; anonim hanya di localhost untuk pengujian. OAuth produksi telah dikonfigurasi; tes otomatis memakai identitas fixture lokal, sedangkan pemilihan akun dan consent Google tetap dilakukan pengguna.
 - Desa 3D halus bergaya desa pertanian hangat dengan masjid tepi danau, kubah, menara, serta ornamen bulan sabit sesuai preferensi pengguna.
 - Lima tekstur prosedural asli (rumput, batu, kayu, genteng, plester), kanopi kebun membulat, perbukitan lembut, kebun sayur dan bunga; brief visual/provenance di `docs/art/`.
 - React + TypeScript untuk UI; Three.js untuk dunia 3D. Material dibagi dan geometri statis digabung untuk mengurangi draw call; render idle dibatasi.
@@ -37,7 +40,7 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 - Batas presence 20. Empat tile video maksimum pada meeting. Setiap penerima berlangganan maksimum tiga kamera remote melalui kebijakan sender, ditambah satu preview lokal. Video di luar seleksi tidak ditambahkan ke peer sender. Audio masih P2P dan belum memakai SFU; target 20 avatar bukan jaminan 20 kamera.
 - WASD/panah, klik tanah, navigasi landmark, orbit/zoom, kontrol sentuh, kualitas grafis ringan, layout responsif.
 - PWA manifest dan service worker dengan halaman offline; sesi sosial membutuhkan koneksi. Aplikasi belum menyimpan seluruh shell untuk penggunaan offline.
-- Pemulihan koneksi memakai satu socket aktif, timeout admission 12 detik, backoff terbatas, retry manual yang membatalkan timer lama, dan respons online/offline browser. Heartbeat native Durable Object memeriksa sambungan macet tanpa membangunkan ruang idle. Setelah reconnect, posisi diselaraskan ke spawn server dan media kembali mati.
+- Pemulihan koneksi memakai satu socket aktif, timeout admission 12 detik, backoff terbatas, retry manual yang membatalkan timer lama, dan respons online/offline browser. Heartbeat native Durable Object memeriksa sambungan macet tanpa membangunkan ruang idle. Setelah reconnect, posisi diselaraskan ke posisi server sebelumnya bila masih tersedia, atau spawn server, dan media kembali mati.
 - Validasi nama/room/message/position, batas 16 KiB pesan, rate limit per sesi 35 pesan/detik, same-origin WebSocket, CSP dan header keamanan.
 
 ## Deployment penuh ke Cloudflare

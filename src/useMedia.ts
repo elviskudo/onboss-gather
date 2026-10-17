@@ -4,6 +4,7 @@ import { canHear, videoSubscriptions } from "./mediaPolicy";
 type Peer = {
   pc: RTCPeerConnection;
   stream: MediaStream;
+  connection?: string;
   makingOffer: boolean;
   ignoreOffer: boolean;
   candidates: RTCIceCandidateInit[];
@@ -20,6 +21,12 @@ export function useMedia(
     [remote, setRemote] = useState<Record<string, MediaStream>>({}),
     [mic, setMic] = useState(false),
     [camera, setCamera] = useState(false);
+  const captureQueue = useRef<Promise<void>>(Promise.resolve());
+  const captureEpoch = useRef(0);
+  function invalidateCapture() {
+    captureEpoch.current++;
+    captureQueue.current = Promise.resolve();
+  }
   const local = useRef<MediaStream | null>(null),
     peers = useRef(new Map<string, Peer>()),
     ice = useRef<RTCIceServer[]>([{ urls: "stun:stun.cloudflare.com:3478" }]),
@@ -45,6 +52,7 @@ export function useMedia(
         })
         .catch(() => {});
     return () => {
+      invalidateCapture();
       for (const t of local.current?.getTracks() || []) t.stop();
       for (const p of peers.current.values()) p.pc.close();
       peers.current.clear();
@@ -71,10 +79,24 @@ export function useMedia(
   }
   function ensure(peerId: string) {
     let peer = peers.current.get(peerId);
+    const connection = current.current.people.find(
+      (p) => p.id === peerId,
+    )?.connection;
+    if (peer && peer.connection !== connection) {
+      peer.pc.close();
+      peers.current.delete(peerId);
+      setRemote((r) => {
+        const next = { ...r };
+        delete next[peerId];
+        return next;
+      });
+      peer = undefined;
+    }
     if (peer) return peer;
     const pc = new RTCPeerConnection({ iceServers: ice.current });
     peer = {
       pc,
+      connection,
       stream: new MediaStream(),
       makingOffer: false,
       ignoreOffer: false,
@@ -82,15 +104,21 @@ export function useMedia(
     };
     peers.current.set(peerId, peer);
     const p = peer;
+    const isCurrent = () =>
+      peers.current.get(peerId) === p &&
+      current.current.people.find((person) => person.id === peerId)
+        ?.connection === p.connection;
     pc.onicecandidate = (e) => {
-      if (e.candidate)
+      if (e.candidate && isCurrent())
         current.current.send({
           type: "signal",
           to: peerId,
+          toConnection: p.connection,
           payload: { candidate: e.candidate.toJSON() },
         });
     };
     pc.ontrack = (e) => {
+      if (!isCurrent()) return;
       for (const track of e.streams[0]?.getTracks() || [e.track]) {
         for (const old of p.stream.getTracks())
           if (old.kind === track.kind && old.id !== track.id)
@@ -100,15 +128,19 @@ export function useMedia(
       setRemote((prev) => ({ ...prev, [peerId]: p.stream }));
     };
     pc.onnegotiationneeded = async () => {
+      if (!isCurrent()) return;
       try {
         p.makingOffer = true;
         await pc.setLocalDescription();
+        if (!isCurrent()) return;
         current.current.send({
           type: "signal",
           to: peerId,
+          toConnection: p.connection,
           payload: { description: pc.localDescription },
         });
       } catch {
+        if (!isCurrent()) return;
         current.current.notice(
           "Media connection could not be negotiated. Try toggling your microphone.",
         );
@@ -117,7 +149,7 @@ export function useMedia(
       }
     };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed") {
+      if (isCurrent() && pc.connectionState === "failed") {
         pc.restartIce();
         current.current.notice(
           "A media connection was interrupted. Reconnecting…",
@@ -130,7 +162,15 @@ export function useMedia(
   signal.current = async (from, payload) => {
     const sender = current.current.people.find((p) => p.id === from);
     const me = current.current.self;
-    if (!sender || from === current.current.id || !canHear(me, sender)) return;
+    if (
+      !sender ||
+      from === current.current.id ||
+      !canHear(me, sender) ||
+      (payload.connection &&
+        sender.connection &&
+        payload.connection !== sender.connection)
+    )
+      return;
     const p = ensure(from);
     try {
       if (payload.description) {
@@ -141,13 +181,16 @@ export function useMedia(
         p.ignoreOffer = current.current.id < from && collision;
         if (p.ignoreOffer) return;
         await p.pc.setRemoteDescription(d);
+        if (peers.current.get(from) !== p) return;
         for (const c of p.candidates) await p.pc.addIceCandidate(c);
         p.candidates = [];
         if (d.type === "offer") {
           await p.pc.setLocalDescription();
+          if (peers.current.get(from) !== p) return;
           current.current.send({
             type: "signal",
             to: from,
+            toConnection: p.connection,
             payload: { description: p.pc.localDescription },
           });
         }
@@ -157,7 +200,7 @@ export function useMedia(
         else p.candidates.push(payload.candidate);
       }
     } catch {
-      if (!p.ignoreOffer)
+      if (!p.ignoreOffer && peers.current.get(from) === p)
         current.current.notice("Unable to connect media to a participant.");
     }
   };
@@ -177,6 +220,7 @@ export function useMedia(
         });
       }
     if (id === "local") {
+      invalidateCapture();
       for (const p of peers.current.values()) p.pc.close();
       peers.current.clear();
       setRemote({});
@@ -189,8 +233,31 @@ export function useMedia(
     }
     for (const pid of ids) syncTracks(pid, ensure(pid));
     // Reconcile only when eligible peers or bounded camera subscriptions change.
-  }, [id, eligible.join(","), videoRecipients]);
-  async function toggle(kind: "audio" | "video") {
+  }, [
+    id,
+    eligible
+      .map(
+        (pid) =>
+          pid + ":" + (people.find((p) => p.id === pid)?.connection || ""),
+      )
+      .join(","),
+    videoRecipients,
+  ]);
+  function toggle(kind: "audio" | "video") {
+    const epoch = captureEpoch.current;
+    const owner = id;
+    const operation = captureQueue.current.then(() =>
+      capture(kind, epoch, owner),
+    );
+    captureQueue.current = operation.catch(() => {});
+    return operation;
+  }
+  async function capture(
+    kind: "audio" | "video",
+    epoch: number,
+    owner: string,
+  ) {
+    if (epoch !== captureEpoch.current || current.current.id !== owner) return;
     if (id === "local") {
       notice("Enter the village to use your microphone or camera.");
       return;
@@ -218,7 +285,7 @@ export function useMedia(
               },
             },
       );
-      if (current.current.id === "local") {
+      if (current.current.id !== owner || epoch !== captureEpoch.current) {
         added.getTracks().forEach((t) => t.stop());
         return;
       }
@@ -233,6 +300,8 @@ export function useMedia(
       if (kind === "audio") setMic(true);
       else setCamera(true);
     } catch (e) {
+      if (current.current.id !== owner || epoch !== captureEpoch.current)
+        return;
       notice(
         e instanceof DOMException && e.name === "NotAllowedError"
           ? "Permission denied. Allow microphone/camera access in your browser settings."
@@ -250,6 +319,7 @@ export function useMedia(
     remote,
     toggle,
     stop: () => {
+      invalidateCapture();
       local.current?.getTracks().forEach((t) => t.stop());
       local.current = null;
       setStream(null);

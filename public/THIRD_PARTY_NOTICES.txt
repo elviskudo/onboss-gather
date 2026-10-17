@@ -1,6 +1,10 @@
 HALLSTATT SOCIAL — THIRD-PARTY NOTICES
 
-All village geometry and UI composition were created for this project.
+The procedural 3D geometry and UI composition were created for this project.
+Space 2 environment sprites were supplied by the project owner as an uploaded
+atlas and deterministically cropped/normalized for this project. Upstream
+author and license metadata were not supplied. No original-authorship claim
+is made for those sprites. Provenance and exact slices: docs/art/space-2-assets.json.
 
 
 react

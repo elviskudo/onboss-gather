@@ -45,11 +45,12 @@ import {
   X,
 } from "lucide-react";
 import { World, type WorldHandle } from "./World";
+import { WORLD_SPACES, type SpaceId } from "../shared/space";
 import { Whiteboard } from "./Whiteboard";
 import { AvatarPortrait } from "./AvatarPortrait";
 import { GoogleSignIn } from "./GoogleSignIn";
-import { roomFromUrl, type SessionInfo } from "./session";
-import { roomPath } from "../shared/room";
+import { roomFromUrl, spaceFromUrl, type SessionInfo } from "./session";
+import { roomSpacePath } from "../shared/room";
 import { LIVE_ORIGIN } from "./GoogleSignIn";
 import {
   SPACES,
@@ -190,8 +191,19 @@ export default function App({
     [pos, setPos] = useState(position.current),
     chatEnd = useRef<HTMLDivElement>(null);
   const roomId = roomFromUrl();
+  const space = spaceFromUrl();
+  const places =
+    space === "space-2"
+      ? [
+          { ...PLACES[0], name: "Farm square", x: 3.5, z: 9 },
+          { ...PLACES[1], name: "Farm pond", x: 9, z: 15 },
+          { ...PLACES[2], name: "Vegetable garden", x: -12, z: 6 },
+          { ...PLACES[3], name: "Farm cottage", x: -11, z: -4 },
+        ]
+      : PLACES;
   const inviteUrl =
-    (STATIC_PREVIEW ? LIVE_ORIGIN : location.origin) + roomPath(roomId);
+    (STATIC_PREVIEW ? LIVE_ORIGIN : location.origin) +
+    roomSpacePath(roomId, space);
   const notify = (s: string) => setToast(s);
   const room = useRoom(notify);
   const own = room.people.find((p) => p.id === room.id);
@@ -317,6 +329,7 @@ export default function App({
       roomId,
       profile?.avatar || avatar,
       profile?.bio || bio,
+      space,
     );
     setWelcome(false);
     return () => room.leave();
@@ -452,7 +465,7 @@ export default function App({
   function go(i: number) {
     setArea("village");
     setPlace(i);
-    const p = PLACES[i];
+    const p = places[i];
     room.send({ type: "navigate", place: i });
     world.current?.go(p.x, p.z);
     setMobileMenu(false);
@@ -476,7 +489,7 @@ export default function App({
       setPlace(0);
       world.current?.go(3.5, 9);
       setArea("village");
-      room.join(n, draftColor, roomId, draftAvatar, draftBio);
+      room.join(n, draftColor, roomId, draftAvatar, draftBio, space);
     } else
       notify(
         "Your avatar is ready. This preview lets you explore on your own.",
@@ -596,8 +609,16 @@ export default function App({
             <Mountain size={19} />
           </span>
           <div>
-            <strong>Your little escape</strong>
-            <small>Hallstatt, Austria</small>
+            <strong>
+              {space === "space-2"
+                ? "Space 2 · Harvest Farm"
+                : "Space 1 · Hallstatt"}
+            </strong>
+            <small>
+              {space === "space-2"
+                ? "Kebun & kehidupan desa"
+                : "Hallstatt, Austria"}
+            </small>
           </div>
           <ChevronDown size={15} />
         </div>
@@ -644,7 +665,7 @@ export default function App({
           <>
             <div className="section-label">A PLACE FOR EVERY MOMENT</div>
             <div className="place-list">
-              {PLACES.map((p, i) => (
+              {places.map((p, i) => (
                 <button
                   key={p.name}
                   className={"place-item " + (place === i ? "selected" : "")}
@@ -835,6 +856,22 @@ export default function App({
       <div className="main-area">
         <header className="topbar">
           <div className="breadcrumb">
+            <select
+              className="space-selector"
+              aria-label="Pilih space"
+              value={space}
+              onChange={(e) =>
+                location.assign(
+                  roomSpacePath(roomId, e.target.value as SpaceId),
+                )
+              }
+            >
+              {WORLD_SPACES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} · {s.description}
+                </option>
+              ))}
+            </select>
             <button
               className="mobile-toggle icon-button"
               aria-label="Open navigation"
@@ -847,7 +884,11 @@ export default function App({
             </span>
             <Mountain size={17} />
             <strong title={roomId}>
-              {roomId === "hallstatt-village" ? "Hallstatt village" : roomId}
+              {roomId === "hallstatt-village"
+                ? space === "space-2"
+                  ? "Space 2 · Harvest Farm"
+                  : "Space 1 · Hallstatt"
+                : roomId}
             </strong>
             <span className="private-tag">
               <Users size={11} />
@@ -901,7 +942,7 @@ export default function App({
             </button>
           </div>
         </header>
-        <main className="scene-shell" data-area={area}>
+        <main className="scene-shell" data-area={area} data-space={space}>
           <div className="space-switcher" aria-label="Enter buildings">
             <strong>
               {area === "village"
@@ -936,6 +977,7 @@ export default function App({
             )}
           </div>
           <World
+            space={space}
             board={room.board?.area === area ? room.board : null}
             onBoard={() => setBoardOpen(true)}
             people={room.people}
@@ -971,6 +1013,8 @@ export default function App({
             <h1>
               {area !== "village" ? (
                 SPACES.find((s) => s.id === area)?.name
+              ) : space === "space-2" ? (
+                "Harvest Farm"
               ) : (
                 <>
                   A little closer,
@@ -979,13 +1023,21 @@ export default function App({
                 </>
               )}
             </h1>
-            <p>Klik orang untuk profil · Klik pintu hijau untuk masuk.</p>
+            <p>
+              {space === "space-2"
+                ? "Klik bangunan untuk masuk · Bertemu dan berkarya di kebun."
+                : "Klik orang untuk profil · Klik pintu hijau untuk masuk."}
+            </p>
           </div>
           <div className="weather-pill">
             <Sun size={21} />
             <div>
               <strong>A beautiful day to be here</strong>
-              <span>Hallstatt · Alpine village</span>
+              <span>
+                {space === "space-2"
+                  ? "Space 2 · Harvest Farm"
+                  : "Space 1 · Hallstatt"}
+              </span>
             </div>
           </div>
           <div className="location-pill">
@@ -993,7 +1045,7 @@ export default function App({
               <MapPin size={15} />
             </span>
             <strong>
-              {SPACES.find((s) => s.id === area)?.name || PLACES[place].name}
+              {SPACES.find((s) => s.id === area)?.name || places[place].name}
             </strong>
             <i />
             Open to wander
@@ -1464,7 +1516,7 @@ export default function App({
         <Whiteboard
           board={room.board}
           area={area}
-          host={self.host}
+          host={self.host || auth?.user?.founder === true}
           send={room.send}
           onClose={() => setBoardOpen(false)}
         />

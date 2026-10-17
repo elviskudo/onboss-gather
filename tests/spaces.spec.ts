@@ -14,7 +14,7 @@ async function join(page: Page, name: string) {
     .click();
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
 }
-test("profiles synchronize, six presets save, and meetings stay inside their building", async ({
+test("profiles synchronize, eight presets save, and meetings stay inside their building", async ({
   browser,
 }) => {
   const a = await browser.newContext(),
@@ -30,7 +30,7 @@ test("profiles synchronize, six presets save, and meetings stay inside their bui
       .getByRole("button", { name: "Buka profil Nadia", exact: true })
       .click();
     const dialog = p1.getByRole("dialog");
-    await expect(dialog.locator(".avatar-presets button")).toHaveCount(6);
+    await expect(dialog.locator(".avatar-presets button")).toHaveCount(8);
     await dialog.getByRole("button", { name: "Cewek", exact: true }).click();
     await p1.getByLabel("Tentang kamu").fill("Product designer");
     await p1

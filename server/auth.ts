@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { resolveSpace, spaceQuery, type SpaceId } from "../shared/space";
 import { resolveRoom, roomPath } from "../shared/room";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 export interface AuthEnv {
@@ -14,7 +15,13 @@ type User = {
   profile?: { name: string; color: string; avatar: string; bio: string };
 };
 type Session = { user: User; expires: number };
-type Flow = { nonce: string; verifier: string; room: string; expires: number };
+type Flow = {
+  nonce: string;
+  verifier: string;
+  room: string;
+  space?: SpaceId;
+  expires: number;
+};
 const random = () =>
   Array.from(crypto.getRandomValues(new Uint8Array(32)), (x) =>
     x.toString(16).padStart(2, "0"),
@@ -173,6 +180,7 @@ export async function handleAuth(
       nonce,
       verifier,
       room,
+      space: resolveSpace(url),
       expires: Date.now() + 600000,
     });
     const challenge = btoa(
@@ -271,7 +279,7 @@ export async function handleAuth(
       });
       const headers = new Headers({
         ...noStore,
-        Location: roomPath(flow.room),
+        Location: roomPath(flow.room) + spaceQuery(flow.space || "space-1"),
       });
       headers.append(
         "Set-Cookie",

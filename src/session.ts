@@ -10,3 +10,6 @@ export type SessionInfo = {
 };
 import { resolveRoom } from "../shared/room";
 export const roomFromUrl = () => resolveRoom(new URL(location.href));
+
+import { resolveSpace } from "../shared/space";
+export const spaceFromUrl = () => resolveSpace(new URL(location.href));

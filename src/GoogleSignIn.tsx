@@ -1,3 +1,4 @@
+import { spaceFromUrl } from "./session";
 export const LIVE_ORIGIN = "https://hallstatt-social.elviskudo.workers.dev";
 
 export function GoogleSignIn({
@@ -10,7 +11,7 @@ export function GoogleSignIn({
   return (
     <a
       className="google-sign-in"
-      href={`${preview ? LIVE_ORIGIN : ""}/api/auth/google?room=${encodeURIComponent(room)}`}
+      href={`${preview ? LIVE_ORIGIN : ""}/api/auth/google?room=${encodeURIComponent(room)}${spaceFromUrl() === "space-2" ? "&space=space-2" : ""}`}
       target="_top"
     >
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">

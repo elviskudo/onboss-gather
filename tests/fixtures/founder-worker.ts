@@ -5,6 +5,21 @@ export default {
   async fetch(request: Request, env: any) {
     const url = new URL(request.url);
     if (
+      url.pathname === "/__test/sweep" &&
+      request.method === "POST" &&
+      ["127.0.0.1", "localhost"].includes(url.hostname)
+    ) {
+      const key =
+        (url.searchParams.get("room") || "hallstatt-village") +
+        (url.searchParams.get("space") === "space-2" ? ":space-2" : "");
+      const room = env.ROOMS.get(env.ROOMS.idFromName(key));
+      await room.prunePresence(
+        Date.now() + Number(url.searchParams.get("offset") || 0),
+      );
+      await room.sync();
+      return Response.json({ people: await room.people() });
+    }
+    if (
       url.pathname === "/__test/login" &&
       request.method === "POST" &&
       ["127.0.0.1", "localhost"].includes(url.hostname)

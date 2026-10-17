@@ -1,0 +1,7 @@
+# Space 2 — Harvest Farm
+
+Space 1 retains the existing Hallstatt 3D village. Space 2 is a separate interactive 3D scene with a grassy farm, dirt paths, vegetable beds, cottage, red barn, greenhouse, workshop, well, fences, fruit trees and animals. It uses the actual user-supplied pixel-art sheet, sliced into 38 alpha assets with nearest filtering. Buildings, trees and the well have independent shared server/client collision proxies. Character avatars remain articulated 3D, deliberately without facial features; age is communicated through proportions, hair and black/white beards. Female presets include hijab, niqab and a child hijab.
+
+The camera is perspective with an elevated farming-game view. Sprites use bottom-centered pivots and camera-facing planes in world space; ground textures tile at two world units. Art is sourced from `assets/source/farm-atlas.jpeg` (user upload 2), with its SHA256 and exact slices in `space-2-assets.json`. Upstream license metadata was not supplied; no claim of original authorship is made for these supplied sprites. Transparent normalization is deterministic flood-fill of neutral light JPEG/checkerboard pixels connected to crop borders. White interior details remain intact.
+
+Run `python3 scripts/prepare-farm-assets.py` to regenerate. Inspect `space-2-contact-sheet.png` and live Space 2 at actual scale. No AI-generated substitutes are used for the supplied environment art. Characters from the sheet are not used: the requested faceless configurable 3D avatars are shared by both spaces.

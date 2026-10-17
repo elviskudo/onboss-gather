@@ -1,3 +1,4 @@
+import type { SpaceId } from "../shared/space";
 import type { AreaId } from "../shared/spaces";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Board, ActivityInvite } from "../shared/social";
@@ -27,12 +28,14 @@ export function useRoom(onNotice: (s: string) => void) {
   const attempts = useRef(0);
   const connectedBefore = useRef(false);
   const live = useRef(false);
+  const lastPong = useRef(Date.now());
   const identity = useRef<{
     name: string;
     color: string;
     room: string;
     avatar: string;
     bio: string;
+    space: SpaceId;
   } | null>(null);
   const onSignal = useRef<(from: string, payload: any) => void>(() => {});
   const notice = useRef(onNotice);
@@ -92,6 +95,7 @@ export function useRoom(onNotice: (s: string) => void) {
       url.searchParams.set("color", i.color);
       url.searchParams.set("avatar", i.avatar);
       url.searchParams.set("bio", i.bio);
+      if (i.space === "space-2") url.searchParams.set("space", i.space);
       const ws = new WebSocket(url);
       socket.current = ws;
       const isCurrent = () => socket.current === ws && intent.current;
@@ -101,6 +105,14 @@ export function useRoom(onNotice: (s: string) => void) {
         setPeople([]);
         setId("local");
         setLocked(false);
+        if (code === 4004) {
+          intent.current = false;
+          setStatus("offline");
+          notice.current(
+            "Akun ini sedang aktif di tab/perangkat lain. Klik Retry untuk memindahkan koneksi ke sini.",
+          );
+          return;
+        }
         if (code === 4001) {
           intent.current = false;
           setStatus("offline");
@@ -149,6 +161,7 @@ export function useRoom(onNotice: (s: string) => void) {
       ws.onmessage = (e) => {
         if (!isCurrent()) return;
         if (e.data === "pong") {
+          lastPong.current = Date.now();
           if (live.current) {
             // Reset backoff only after a successful liveness check, not after
             // admission alone: a server that accepts then drops must still stop retrying.
@@ -180,6 +193,7 @@ export function useRoom(onNotice: (s: string) => void) {
           setSpawn((previous) => ({
             x: Number.isFinite(m.self?.x) ? m.self.x : 3.5,
             z: Number.isFinite(m.self?.z) ? m.self.z : 9,
+            area: m.self?.area,
             revision: (previous?.revision ?? 0) + 1,
           }));
           setStatus("connected");
@@ -236,7 +250,7 @@ export function useRoom(onNotice: (s: string) => void) {
         if (m.type === "error" && typeof m.message === "string")
           notice.current(m.message);
         if (m.type === "signal" && typeof m.from === "string")
-          onSignal.current(m.from, m.payload);
+          onSignal.current(m.from, { ...m.payload, connection: m.connection });
       };
       ws.onclose = (e) => disconnect(e.code);
       ws.onerror = () => disconnect();
@@ -245,12 +259,19 @@ export function useRoom(onNotice: (s: string) => void) {
   );
 
   const join = useCallback(
-    (name: string, color: string, room: string, avatar = "man", bio = "") => {
+    (
+      name: string,
+      color: string,
+      room: string,
+      avatar = "man",
+      bio = "",
+      space: SpaceId = "space-1",
+    ) => {
       retire();
       setPeople([]);
       setId("local");
       setLocked(false);
-      identity.current = { name, color, room, avatar, bio };
+      identity.current = { name, color, room, avatar, bio, space };
       intent.current = true;
       attempts.current = 0;
       connectedBefore.current = false;
@@ -296,9 +317,25 @@ export function useRoom(onNotice: (s: string) => void) {
       setLocked(false);
       setStatus("reconnecting");
     };
+    const resume = () => {
+      if (document.hidden || !intent.current) return;
+      const pending =
+        socket.current &&
+        !live.current &&
+        (socket.current.readyState === WebSocket.CONNECTING ||
+          socket.current.readyState === WebSocket.OPEN);
+      if (pending) return;
+      if (!live.current || Date.now() - lastPong.current > 45000) {
+        attempts.current = 0;
+        connect();
+      } else if (socket.current?.readyState === WebSocket.OPEN)
+        socket.current.send("ping");
+    };
+    document.addEventListener("visibilitychange", resume);
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
     return () => {
+      document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("online", online);
       window.removeEventListener("offline", offline);
       intent.current = false;

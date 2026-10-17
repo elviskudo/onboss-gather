@@ -1,0 +1,727 @@
+{
+  "source_sha256": "7f23e6b2fbdb2048d8a84f01d00c1126e55bd1eb26d328e0a68da9405d25d31b",
+  "assets": [
+    {
+      "id": "cottage",
+      "file": "/assets/farm/cottage.png",
+      "source_rect": [
+        718,
+        5,
+        975,
+        255
+      ],
+      "size": [
+        257,
+        250
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "barn",
+      "file": "/assets/farm/barn.png",
+      "source_rect": [
+        976,
+        2,
+        1253,
+        252
+      ],
+      "size": [
+        277,
+        250
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "coop",
+      "file": "/assets/farm/coop.png",
+      "source_rect": [
+        720,
+        261,
+        881,
+        427
+      ],
+      "size": [
+        161,
+        166
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "workshop",
+      "file": "/assets/farm/workshop.png",
+      "source_rect": [
+        882,
+        265,
+        1080,
+        428
+      ],
+      "size": [
+        198,
+        163
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "well",
+      "file": "/assets/farm/well.png",
+      "source_rect": [
+        1093,
+        269,
+        1252,
+        428
+      ],
+      "size": [
+        159,
+        159
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "greenhouse",
+      "file": "/assets/farm/greenhouse.png",
+      "source_rect": [
+        720,
+        430,
+        882,
+        593
+      ],
+      "size": [
+        162,
+        163
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "mailbox",
+      "file": "/assets/farm/mailbox.png",
+      "source_rect": [
+        877,
+        464,
+        945,
+        578
+      ],
+      "size": [
+        68,
+        114
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "crate",
+      "file": "/assets/farm/crate.png",
+      "source_rect": [
+        957,
+        486,
+        1037,
+        580
+      ],
+      "size": [
+        80,
+        94
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "stable",
+      "file": "/assets/farm/stable.png",
+      "source_rect": [
+        1068,
+        443,
+        1252,
+        594
+      ],
+      "size": [
+        184,
+        151
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "fence",
+      "file": "/assets/farm/fence.png",
+      "source_rect": [
+        737,
+        609,
+        841,
+        684
+      ],
+      "size": [
+        104,
+        75
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "gate",
+      "file": "/assets/farm/gate.png",
+      "source_rect": [
+        841,
+        609,
+        948,
+        684
+      ],
+      "size": [
+        107,
+        75
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "picket",
+      "file": "/assets/farm/picket.png",
+      "source_rect": [
+        949,
+        609,
+        1048,
+        684
+      ],
+      "size": [
+        99,
+        75
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "stonewall",
+      "file": "/assets/farm/stonewall.png",
+      "source_rect": [
+        1048,
+        609,
+        1155,
+        684
+      ],
+      "size": [
+        107,
+        75
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "oak",
+      "file": "/assets/farm/oak.png",
+      "source_rect": [
+        8,
+        586,
+        132,
+        737
+      ],
+      "size": [
+        124,
+        151
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "apple",
+      "file": "/assets/farm/apple.png",
+      "source_rect": [
+        132,
+        586,
+        246,
+        737
+      ],
+      "size": [
+        114,
+        151
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "pine",
+      "file": "/assets/farm/pine.png",
+      "source_rect": [
+        246,
+        590,
+        365,
+        737
+      ],
+      "size": [
+        119,
+        147
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "stump",
+      "file": "/assets/farm/stump.png",
+      "source_rect": [
+        383,
+        628,
+        469,
+        739
+      ],
+      "size": [
+        86,
+        111
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "cow",
+      "file": "/assets/farm/cow.png",
+      "source_rect": [
+        4,
+        986,
+        143,
+        1085
+      ],
+      "size": [
+        139,
+        99
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "sheep",
+      "file": "/assets/farm/sheep.png",
+      "source_rect": [
+        147,
+        990,
+        263,
+        1082
+      ],
+      "size": [
+        116,
+        92
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "chicken",
+      "file": "/assets/farm/chicken.png",
+      "source_rect": [
+        268,
+        1010,
+        327,
+        1084
+      ],
+      "size": [
+        59,
+        74
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "chick",
+      "file": "/assets/farm/chick.png",
+      "source_rect": [
+        372,
+        1016,
+        424,
+        1084
+      ],
+      "size": [
+        52,
+        68
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "horse",
+      "file": "/assets/farm/horse.png",
+      "source_rect": [
+        440,
+        980,
+        577,
+        1086
+      ],
+      "size": [
+        137,
+        106
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "dog",
+      "file": "/assets/farm/dog.png",
+      "source_rect": [
+        578,
+        992,
+        682,
+        1084
+      ],
+      "size": [
+        104,
+        92
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "cat",
+      "file": "/assets/farm/cat.png",
+      "source_rect": [
+        689,
+        998,
+        765,
+        1085
+      ],
+      "size": [
+        76,
+        87
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "carrot",
+      "file": "/assets/farm/carrot.png",
+      "source_rect": [
+        1046,
+        744,
+        1118,
+        824
+      ],
+      "size": [
+        72,
+        80
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "turnip",
+      "file": "/assets/farm/turnip.png",
+      "source_rect": [
+        234,
+        748,
+        299,
+        822
+      ],
+      "size": [
+        65,
+        74
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "tomato",
+      "file": "/assets/farm/tomato.png",
+      "source_rect": [
+        589,
+        825,
+        655,
+        908
+      ],
+      "size": [
+        66,
+        83
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "corn",
+      "file": "/assets/farm/corn.png",
+      "source_rect": [
+        1040,
+        818,
+        1111,
+        910
+      ],
+      "size": [
+        71,
+        92
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "pumpkin",
+      "file": "/assets/farm/pumpkin.png",
+      "source_rect": [
+        217,
+        914,
+        311,
+        989
+      ],
+      "size": [
+        94,
+        75
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "flower",
+      "file": "/assets/farm/flower.png",
+      "source_rect": [
+        648,
+        921,
+        712,
+        988
+      ],
+      "size": [
+        64,
+        67
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "sunflower",
+      "file": "/assets/farm/sunflower.png",
+      "source_rect": [
+        927,
+        903,
+        1004,
+        991
+      ],
+      "size": [
+        77,
+        88
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "pink-tree",
+      "file": "/assets/farm/pink-tree.png",
+      "source_rect": [
+        843,
+        1063,
+        947,
+        1178
+      ],
+      "size": [
+        104,
+        115
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "autumn-tree",
+      "file": "/assets/farm/autumn-tree.png",
+      "source_rect": [
+        1044,
+        1059,
+        1151,
+        1179
+      ],
+      "size": [
+        107,
+        120
+      ],
+      "alpha": true,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "grass",
+      "file": "/assets/farm/grass.png",
+      "source_rect": [
+        20,
+        1180,
+        74,
+        1235
+      ],
+      "size": [
+        54,
+        55
+      ],
+      "alpha": false,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "dirt",
+      "file": "/assets/farm/dirt.png",
+      "source_rect": [
+        91,
+        1180,
+        145,
+        1235
+      ],
+      "size": [
+        54,
+        55
+      ],
+      "alpha": false,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "soil",
+      "file": "/assets/farm/soil.png",
+      "source_rect": [
+        162,
+        1180,
+        216,
+        1235
+      ],
+      "size": [
+        54,
+        55
+      ],
+      "alpha": false,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "paving",
+      "file": "/assets/farm/paving.png",
+      "source_rect": [
+        233,
+        1180,
+        287,
+        1235
+      ],
+      "size": [
+        54,
+        55
+      ],
+      "alpha": false,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    },
+    {
+      "id": "water",
+      "file": "/assets/farm/water.png",
+      "source_rect": [
+        303,
+        1180,
+        357,
+        1235
+      ],
+      "size": [
+        54,
+        55
+      ],
+      "alpha": false,
+      "pivot": "bottom-center",
+      "filter": "nearest",
+      "source": "user-upload-image-2",
+      "license": "User supplied for this project; upstream license not provided."
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import type { SpaceId } from "./space.ts";
 import { walkable, type AreaId } from "./spaces.ts";
 export const AVATAR_GAP = 1.05;
 export const SEATS = [-2.2, 2.2].flatMap((z, row) =>
@@ -44,13 +45,14 @@ export function freePoint(
   people: Occupant[],
   near: { x: number; z: number },
   id: string,
+  space: SpaceId = "space-1",
 ) {
   for (const distance of [1.5, 2.5, 4, 6])
     for (let n = 0; n < 12; n++) {
       const x = near.x + Math.cos((n * Math.PI) / 6) * distance,
         z = near.z + Math.sin((n * Math.PI) / 6) * distance;
       if (
-        walkable(x, z, area) &&
+        walkable(x, z, area, space) &&
         !people.some(
           (p) =>
             p.id !== id &&

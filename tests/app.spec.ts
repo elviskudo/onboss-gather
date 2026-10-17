@@ -1,10 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
 const RUN = Date.now().toString(36);
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() =>
-    localStorage.setItem("hallstatt-quality", "low"),
-  );
-});
 async function join(page: Page, name: string) {
   await page.addInitScript(() =>
     localStorage.setItem("hallstatt-quality", "low"),
@@ -32,6 +27,9 @@ async function join(page: Page, name: string) {
 test("3D world, navigation, settings, invitations and responsive layout", async ({
   page,
 }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("hallstatt-quality", "low"),
+  );
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
@@ -51,7 +49,7 @@ test("3D world, navigation, settings, invitations and responsive layout", async 
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.getByRole("button", { name: "Invite friends" }).click();
   await expect(page.getByLabel("Your village link")).toHaveValue(
-    /room=hallstatt-village/,
+    /\/rooms\/hallstatt-village$/,
   );
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.screenshot({ path: "docs/desktop.png", fullPage: true });
@@ -126,66 +124,106 @@ test("API rejects invalid origins and unknown routes", async ({ request }) => {
   const config = await request.get("/api/media-config");
   expect((await config.json()).iceServers.length).toBeGreaterThan(0);
 });
-test("real WebRTC audio and video negotiate using synthetic devices", async ({
-  browser,
-}) => {
-  const a = await browser.newContext({ permissions: ["microphone", "camera"] }),
-    b = await browser.newContext({ permissions: ["microphone", "camera"] });
-  try {
-    const p1 = await a.newPage(),
-      p2 = await b.newPage();
-    await join(p1, "MediaHost");
-    await join(p2, "MediaGuest");
-    await p1.getByRole("button", { name: "Meet", exact: true }).click();
-    await p1.getByRole("button", { name: "Join the conversation" }).click();
-    await p2.getByRole("button", { name: "Meet", exact: true }).click();
-    await p2.getByRole("button", { name: "Join the conversation" }).click();
-    await p1.getByRole("button", { name: "Unmute microphone" }).click();
-    await p1.getByRole("button", { name: "Turn camera on" }).click();
-    await p2.getByRole("button", { name: "Unmute microphone" }).click();
-    await p2.getByRole("button", { name: "Turn camera on" }).click();
-    await expect(p1.locator(".media-tile video")).toHaveCount(2, {
-      timeout: 15000,
-    });
-    await expect
-      .poll(
-        () =>
-          p1
-            .locator(".media-tile video")
-            .nth(1)
-            .evaluate((v: HTMLVideoElement) => v.videoWidth),
-        { timeout: 15000 },
-      )
-      .toBeGreaterThan(0);
-    await expect
-      .poll(
-        () =>
+for (const meetingArea of ["village", "workspace"])
+  test(`real WebRTC audio and video negotiate using synthetic devices in ${meetingArea}`, async ({
+    browser,
+  }) => {
+    const a = await browser.newContext({
+        permissions: ["microphone", "camera"],
+      }),
+      b = await browser.newContext({ permissions: ["microphone", "camera"] });
+    try {
+      const p1 = await a.newPage(),
+        p2 = await b.newPage();
+      await join(p1, "MediaHost");
+      // Keep this transport check independent of full-resolution scene GPU load.
+      await p1.addStyleTag({
+        content: ".world-canvas {width:64px!important;height:64px!important}",
+      });
+      await join(p2, "MediaGuest");
+      await p2.addStyleTag({
+        content: ".world-canvas {width:64px!important;height:64px!important}",
+      });
+      if (meetingArea === "workspace")
+        await p1
+          .getByRole("button", { name: "Working space", exact: true })
+          .click();
+      await p1
+        .getByRole("button", {
+          name: meetingArea === "workspace" ? "Meeting di sini" : "Meet",
+          exact: true,
+        })
+        .click();
+      await p1.getByRole("button", { name: "Join the conversation" }).click();
+      if (meetingArea === "workspace")
+        await p2
+          .getByRole("button", { name: "Working space", exact: true })
+          .click();
+      await p2
+        .getByRole("button", {
+          name: meetingArea === "workspace" ? "Meeting di sini" : "Meet",
+          exact: true,
+        })
+        .click();
+      await p2.getByRole("button", { name: "Join the conversation" }).click();
+      await p1.getByRole("button", { name: "Unmute microphone" }).click();
+      await expect(
+        p1.getByRole("button", { name: "Mute microphone", exact: true }),
+      ).toBeVisible({ timeout: 15000 });
+      await p1.getByRole("button", { name: "Turn camera on" }).click();
+      await expect(
+        p1.getByRole("button", { name: "Turn camera off", exact: true }),
+      ).toBeVisible({ timeout: 15000 });
+      await p2.getByRole("button", { name: "Unmute microphone" }).click();
+      await expect(
+        p2.getByRole("button", { name: "Mute microphone", exact: true }),
+      ).toBeVisible({ timeout: 15000 });
+      await p2.getByRole("button", { name: "Turn camera on" }).click();
+      await expect(
+        p2.getByRole("button", { name: "Turn camera off", exact: true }),
+      ).toBeVisible({ timeout: 15000 });
+      await expect(p1.locator(".media-tile video")).toHaveCount(2, {
+        timeout: 15000,
+      });
+      await expect
+        .poll(
+          () =>
+            p1
+              .locator(".media-tile video")
+              .nth(1)
+              .evaluate((v: HTMLVideoElement) => v.videoWidth),
+          { timeout: 15000 },
+        )
+        .toBeGreaterThan(0);
+      await expect
+        .poll(
+          () =>
+            p2
+              .locator("audio")
+              .evaluateAll((items: HTMLAudioElement[]) =>
+                items.some((a) =>
+                  (a.srcObject as MediaStream | null)
+                    ?.getAudioTracks()
+                    .some((t) => t.readyState === "live"),
+                ),
+              ),
+          { timeout: 15000 },
+        )
+        .toBe(true);
+      await p1
+        .getByRole("button", { name: "Mute microphone", exact: true })
+        .click();
+      await expect
+        .poll(() =>
           p2
             .locator("audio")
             .evaluateAll((items: HTMLAudioElement[]) =>
-              items.some((a) =>
-                (a.srcObject as MediaStream | null)
-                  ?.getAudioTracks()
-                  .some((t) => t.readyState === "live"),
-              ),
+              items.every((a) => a.volume === 0),
             ),
-        { timeout: 15000 },
-      )
-      .toBe(true);
-    await p1
-      .getByRole("button", { name: "Mute microphone", exact: true })
-      .click();
-    await expect
-      .poll(() =>
-        p2
-          .locator("audio")
-          .evaluateAll((items: HTMLAudioElement[]) =>
-            items.every((a) => a.volume === 0),
-          ),
-      )
-      .toBe(true);
-  } finally {
-    await a.close();
-    await b.close();
-  }
-});
+        )
+        .toBe(true);
+    } finally {
+      await a.close();
+      await b.close();
+    }
+  });

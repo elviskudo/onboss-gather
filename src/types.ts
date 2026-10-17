@@ -8,6 +8,7 @@ export type Person = {
   area?: AreaId;
   bio?: string;
   seat?: string;
+  connection?: string;
   x: number;
   z: number;
   mic: boolean;
@@ -16,14 +17,7 @@ export type Person = {
   host: boolean;
 };
 export type Message = { id: string; name: string; text: string; at: number };
-export const COLORS = [
-  "#c87855",
-  "#628c7a",
-  "#798ab6",
-  "#bd8bba",
-  "#d6ac5b",
-  "#6aabb2",
-];
+export { COLORS } from "../shared/palette";
 export const PLACES = [
   {
     name: "Village square",

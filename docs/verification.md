@@ -123,3 +123,30 @@ Concurrent admission testing used eight authenticated sessions and confirmed uni
 Full Cloudflare Worker deployed with existing ROOMS/AUTH bindings, version 577fdb0f-5345-40aa-9c4a-297a33e65e9c. Both browsers must refresh to load the updated client and recreate old connections. The authenticated interaction tests ran on an isolated local Worker, including synthetic microphone tracks; cross-network/per-device production voice has not yet been verified.
 
 Live checks confirmed health 200, preservation of hallstatt-village through the 302 login redirect, the new production client entrypoint, and rejection of an anonymous WebSocket with 401. Three preview gateway checks passed (10.0 seconds), with four full-mode-only checks intentionally skipped. Preview still requires the separate Google login path and does not start a local world, API session or room socket before login.
+
+
+## 17 October 2026 — stable presence, faceless avatars and Harvest Farm
+
+Authenticated presence now has a stable per-account/per-room/space avatar ID and a fresh transport epoch. New connections replace overlapping account connections with close code 4004. Superseded clients stop automatic retries. A 3-minute presence lease, native heartbeat timestamps, periodic alarms and visibility recovery remove abandoned transports. Existing position/area and host ownership survive replacement, without resetting meeting locks. RTC peers renew when the remote transport epoch changes.
+
+Space 1 retains Hallstatt. Space 2 uses 38 actual slices of the supplied atlas, with alpha normalization, a farm layout, outdoor collision proxies, four enterable meeting/whiteboard interiors, and per-space Durable Objects. Room/space invitations persist through login and OAuth. Asset provenance and exact slicing rectangles are recorded under docs/art.
+
+All eight avatar presets are featureless in both SVG profiles and 3D models; adult/elder beards are black/white, female variants wear hijab/niqab, and 24 shirt colors wrap without clipping. Shared boards support stroke erasing, note deletion by participants, and revision-confirmed full clearing by host or verified founder.
+
+Sixteen distinct authenticated local browser/transport checks passed across the main suite and focused reruns: repeated account-session replacement; three simulated five-minute abandoned-transport resumptions; superseded-tab suppression; lease expiration versus native heartbeat; two-account erase/delete/clear; cross-space presence/board isolation; login/invite preservation; atlas loading; all avatar presets at close camera distance; mobile palette layout; renewed live synthetic WebRTC audio after stable-avatar reconnect; and prior founder, room-invite and social regressions. The visual test was corrected to open the profile before switching to mobile, where the desktop sidebar is hidden. Screenshots include space-2-farm.png, faceless-avatar-options.png, avatar-options-mobile.png, avatar-3d-*.png and board-delete-fixed.png.
+
+Strict client/Worker type checks, collision/spawn checks for twenty arrivals in both spaces, video/audio policy checks, and the real 20-WebSocket protocol scenario passed. These local tests do not establish cross-network media or physical-device performance.
+
+## 18 October 2026 — media capture follow-up
+
+Mic/camera capture requests now execute in order. Capture generations invalidate queued work when leaving, reconnecting or signing out; any late stream from a retired session is immediately stopped. This prevents overlapping permission/capture requests and late device activation in a subsequent session.
+
+Real synthetic WebRTC video checks passed in both village and workspace meetings (two-way live tracks and decoded remote frames). Earlier full-resolution runs timed out on the local host, including before media activation. The transport scenarios now wait for each device state and use a 64px 3D canvas to isolate the media test from scene GPU load; they retain real browser capture, signaling, peer connections, video decoding and remote audio assertions. Separate full-size world/profile/interior/mobile visual checks passed. These results do not establish full-resolution multi-camera performance on physical devices or cross-network relay behavior.
+
+Stable-avatar reconnect verification exposed late signaling across transport replacement. Offers/ICE now carry the intended recipient connection epoch; the server drops stale destinations and stamps the authenticated sender epoch. Client signaling rejects retired sender epochs, and old peer callbacks cannot update remote streams or negotiate into a replacement peer. The five-session replacement test also checks that obsolete signaling is rejected while current signaling is delivered. Both this protocol check and renewed live audio after reload passed with the same avatar ID and room.
+
+The pending-capture sign-out regression passed: the late microphone track is stopped and a queued camera request never starts. Existing successful/failed logout checks and long-background abandoned-transport checks also passed after the capture queue change.
+
+Full Worker deployed successfully as version 783f30c6-49f4-4413-a0a5-d5f4dd292c74 at https://hallstatt-social.elviskudo.workers.dev. Final village/workspace synthetic video regressions and both real-WebSocket protocol scenarios passed after epoch scoping. Public production smoke checks verified the current full client bundle, required/configured Google login, PKCE callback, preserved Space 2 login routing, the uploaded farm PNG, and rejection of anonymous founder access. Existing tabs need a refresh to load the updated connection-retirement client.
+
+The static preview build and its three applicable gateway/mobile checks passed (five full-mode checks skipped by design). It does not start room/media connections and directs Google sign-in to the full Cloudflare application while preserving the invited room/space.

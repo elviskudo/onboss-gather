@@ -9,8 +9,8 @@ import {
   RotateCw,
 } from "lucide-react";
 import { GoogleSignIn } from "./GoogleSignIn";
-import { roomPath } from "../shared/room";
-import { roomFromUrl, type SessionInfo } from "./session";
+import { roomSpacePath, loginPath } from "../shared/room";
+import { roomFromUrl, spaceFromUrl, type SessionInfo } from "./session";
 const Village = lazy(() => import("./App"));
 const Founder = lazy(() => import("./Founder"));
 const preview = import.meta.env.VITE_STATIC_PREVIEW;
@@ -57,13 +57,13 @@ export default function Entry() {
       !session.user &&
       location.pathname !== "/login"
     )
+      history.replaceState(null, "", loginPath(roomFromUrl(), spaceFromUrl()));
+    else if (session?.user && location.pathname === "/login")
       history.replaceState(
         null,
         "",
-        `/login?room=${encodeURIComponent(roomFromUrl())}`,
+        roomSpacePath(roomFromUrl(), spaceFromUrl()),
       );
-    else if (session?.user && location.pathname === "/login")
-      history.replaceState(null, "", roomPath(roomFromUrl()));
   }, [session]);
   if (!mustLogin) {
     if (location.pathname === "/founder")
@@ -71,9 +71,7 @@ export default function Entry() {
         <Suspense fallback={<Loading />}>
           <Founder
             onLogout={() =>
-              location.assign(
-                `/login?room=${encodeURIComponent(roomFromUrl())}`,
-              )
+              location.assign(loginPath(roomFromUrl(), spaceFromUrl()))
             }
           />
         </Suspense>
@@ -93,7 +91,7 @@ export default function Entry() {
             history.replaceState(
               null,
               "",
-              `/login?room=${encodeURIComponent(roomFromUrl())}`,
+              loginPath(roomFromUrl(), spaceFromUrl()),
             );
           }}
         />

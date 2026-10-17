@@ -1,3 +1,5 @@
+import { FARM_SOLIDS } from "./farm.ts";
+import type { SpaceId } from "./space.ts";
 import { WORLD_BOUNDS } from "./world.ts";
 export const AVATARS = [
   {
@@ -47,6 +49,22 @@ export const AVATARS = [
     scale: 0.94,
     skin: "#d5aa8b",
     hair: "#d5d3ca",
+  },
+  {
+    id: "niqab",
+    label: "Cadar",
+    icon: "🧕",
+    scale: 0.96,
+    skin: "#dbab86",
+    hair: "#252b27",
+  },
+  {
+    id: "girl",
+    label: "Anak berhijab",
+    icon: "🧕",
+    scale: 0.69,
+    skin: "#d6a07b",
+    hair: "#32271f",
   },
 ] as const;
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -143,13 +161,29 @@ export const FURNITURE = [
   [-7, -4, 1, 2],
   [7, -4, 1, 2],
 ];
-export function walkable(x: number, z: number, area: string = "village") {
+export function walkable(
+  x: number,
+  z: number,
+  area: string = "village",
+  space: SpaceId = "space-1",
+) {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   if (area !== "village")
     return (
       Math.abs(x) < 9.4 &&
       Math.abs(z) < 7.9 &&
       !FURNITURE.some(
+        ([a, b, w, d]) =>
+          Math.abs(x - a) < w + 0.35 && Math.abs(z - b) < d + 0.35,
+      )
+    );
+  if (space === "space-2")
+    return (
+      x > WORLD_BOUNDS.minX &&
+      x < WORLD_BOUNDS.maxX &&
+      z > WORLD_BOUNDS.minZ &&
+      z < WORLD_BOUNDS.maxZ &&
+      !FARM_SOLIDS.some(
         ([a, b, w, d]) =>
           Math.abs(x - a) < w + 0.35 && Math.abs(z - b) < d + 0.35,
       )
@@ -180,6 +214,7 @@ export function sameAudioSpace(
 export function spawnPoint(
   area: string,
   people: { x: number; z: number; area?: string }[],
+  space: SpaceId = "space-1",
 ) {
   const points: number[][] =
     area === "village"
@@ -197,7 +232,7 @@ export function spawnPoint(
         ];
   const point = points.find(
     ([x, z]) =>
-      walkable(x, z, area) &&
+      walkable(x, z, area, space) &&
       !people.some(
         (p) =>
           (p.area || "village") === area && Math.hypot(p.x - x, p.z - z) < 1.05,

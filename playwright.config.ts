@@ -5,6 +5,7 @@ export default defineConfig({
     "**/founder.spec.ts",
     "**/room-invite.spec.ts",
     "**/social.spec.ts",
+    "**/revision.spec.ts",
   ],
   timeout: 90000,
   fullyParallel: false,

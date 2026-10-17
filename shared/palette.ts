@@ -1,0 +1,28 @@
+export const COLORS = [
+  "#c87855",
+  "#628c7a",
+  "#798ab6",
+  "#bd8bba",
+  "#d6ac5b",
+  "#6aabb2",
+  "#222222",
+  "#f0e9d6",
+  "#6c4533",
+  "#405438",
+  "#274c60",
+  "#663c64",
+  "#bf4b45",
+  "#dc8950",
+  "#e5c66d",
+  "#97b98a",
+  "#72b4b9",
+  "#a5b6d9",
+  "#d9a5bd",
+  "#8b737b",
+  "#9e604d",
+  "#b4a17b",
+  "#546d83",
+  "#3c796b",
+] as const;
+export const validColor = (value: unknown): value is string =>
+  typeof value === "string" && COLORS.some((c) => c === value.toLowerCase());

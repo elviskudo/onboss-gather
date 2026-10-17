@@ -2486,3 +2486,60 @@ kbd {
     flex-shrink: 0;
   }
 }
+.space-selector {
+  max-width: 210px;
+  border: 1px solid #d8dfcb;
+  border-radius: 8px;
+  padding: 8px 9px;
+  background: #fafcf4;
+  color: #466441;
+  font-size: 11px;
+}
+.board-tools > button[aria-pressed="true"] {
+  background: #dce8c8;
+  outline: 1px solid #8aa46c;
+}
+.board-tools {
+  flex-wrap: wrap;
+}
+.delete-note {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 10px;
+  color: #8f5f47;
+  padding: 7px 0 0;
+  margin-top: 9px;
+}
+.avatar-presets {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.color-picker {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.color-picker button {
+  flex: 0 0 33px;
+}
+.breadcrumb {
+  min-width: 0;
+}
+.breadcrumb strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+@media (max-width: 768px) {
+  .space-selector {
+    max-width: 118px;
+    font-size: 10px;
+    padding: 7px;
+  }
+  .breadcrumb strong {
+    display: none;
+  }
+  .avatar-presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
