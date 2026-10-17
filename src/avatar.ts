@@ -93,14 +93,19 @@ export function createHuman(
   if (preset.id === "adult")
     ellipsoid(head, hair, 0, -0.16, 0.114, 0.17, 0.105, 0.103);
   const limbs: T.Group[] = [];
+  const knees: T.Group[] = [];
   for (const side of [-1, 1]) {
     const leg = new T.Group();
     leg.position.set(side * 0.15, 0.98, 0);
     body.add(leg);
     limbs.push(leg);
     capsule(leg, "#374755", 0, -0.24, 0, 0.105, 0.33);
-    capsule(leg, "#374755", 0, -0.64, 0, 0.087, 0.32);
-    ellipsoid(leg, "#e8e4d9", 0, -0.9, 0.07, 0.115, 0.085, 0.22);
+    const knee = new T.Group();
+    knee.position.y = -0.44;
+    leg.add(knee);
+    knees.push(knee);
+    capsule(knee, "#374755", 0, -0.2, 0, 0.087, 0.32);
+    ellipsoid(knee, "#e8e4d9", 0, -0.46, 0.07, 0.115, 0.085, 0.22);
     const arm = new T.Group();
     arm.position.set(side * 0.35, 1.69, 0);
     body.add(arm);
@@ -158,18 +163,32 @@ export function createHuman(
     }
   }
   batch(body, limbs);
-  for (const limb of limbs) batch(limb);
+  for (const limb of limbs) batch(limb, knees);
+  for (const knee of knees) batch(knee);
+  root.userData.knees = knees;
+  root.userData.scale = preset.scale;
   root.userData.limbs = limbs;
   root.userData.personId = p.id;
   return root;
 }
-export function animateHuman(g: T.Group, now: number, moving: boolean) {
+export function animateHuman(
+  g: T.Group,
+  now: number,
+  moving: boolean,
+  sitting = false,
+) {
+  for (const knee of (g.userData.knees || []) as T.Group[])
+    knee.rotation.x = sitting ? Math.PI / 2 : 0;
   const limbs = g.userData.limbs as T.Group[];
   limbs?.forEach(
     (limb, i) =>
-      (limb.rotation.x = moving
-        ? Math.sin(now * 0.01 + [0, Math.PI, Math.PI, 0][i]) *
-          (i % 2 ? 0.4 : 0.5)
-        : T.MathUtils.lerp(limb.rotation.x, 0, 0.2)),
+      (limb.rotation.x = sitting
+        ? i % 2
+          ? -0.65
+          : -Math.PI / 2
+        : moving
+          ? Math.sin(now * 0.01 + [0, Math.PI, Math.PI, 0][i]) *
+            (i % 2 ? 0.4 : 0.5)
+          : T.MathUtils.lerp(limb.rotation.x, 0, 0.2)),
   );
 }

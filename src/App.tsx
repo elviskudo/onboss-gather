@@ -45,6 +45,7 @@ import {
   X,
 } from "lucide-react";
 import { World, type WorldHandle } from "./World";
+import { Whiteboard } from "./Whiteboard";
 import { AvatarPortrait } from "./AvatarPortrait";
 import { GoogleSignIn } from "./GoogleSignIn";
 import { roomFromUrl, type SessionInfo } from "./session";
@@ -90,10 +91,12 @@ function MediaTile({
   stream,
   name,
   muted = false,
+  local = false,
 }: {
   stream: MediaStream | null;
   name: string;
   muted?: boolean;
+  local?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
@@ -111,7 +114,7 @@ function MediaTile({
       )}
       <small>
         {name}
-        {muted ? " · you" : ""}
+        {local ? " · you" : ""}
       </small>
     </div>
   );
@@ -145,6 +148,10 @@ export default function App({
   const [signedOut, setSignedOut] = useState(false),
     [signingOut, setSigningOut] = useState(false),
     [toast, setToast] = useState(""),
+    [socialOpen, setSocialOpen] = useState(false),
+    [socialTarget, setSocialTarget] = useState<string | null>(null),
+    [activityArea, setActivityArea] = useState<AreaId>("workspace"),
+    [boardOpen, setBoardOpen] = useState(false),
     [name, setName] = useState(() => stored("hallstatt-name", "Explorer")),
     [color, setColor] = useState(() => stored("hallstatt-color", COLORS[0])),
     [avatar, setAvatar] = useState<AvatarId>(() => {
@@ -194,6 +201,7 @@ export default function App({
     color,
     avatar,
     bio,
+    seat: own?.seat,
     area,
     x: pos.x,
     z: pos.z,
@@ -314,6 +322,81 @@ export default function App({
     return () => room.leave();
     // Join once for this authenticated identity and room; edits use the live profile channel.
   }, [auth?.user?.name, roomId, room.join, room.leave]);
+  const nearest = room.people
+    .filter(
+      (p) =>
+        p.id !== room.id &&
+        (p.area || "village") === area &&
+        Math.hypot(p.x - pos.x, p.z - pos.z) < 12,
+    )
+    .sort(
+      (a, b) =>
+        Math.hypot(a.x - pos.x, a.z - pos.z) -
+        Math.hypot(b.x - pos.x, b.z - pos.z),
+    )[0];
+  const socialPerson = socialTarget
+    ? room.people.find((p) => p.id === socialTarget)
+    : nearest;
+  const canTalk =
+    socialPerson &&
+    !socialPerson.meeting &&
+    !inMeeting &&
+    (socialPerson.area || "village") === area &&
+    Math.hypot(socialPerson.x - pos.x, socialPerson.z - pos.z) < 12;
+  function interact() {
+    if (own?.seat) {
+      room.send({ type: "stand" });
+      return;
+    }
+    setSocialTarget(nearest?.id || null);
+    setSocialOpen(true);
+  }
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "e" ||
+        event.repeat ||
+        modal ||
+        socialOpen ||
+        boardOpen ||
+        !connected ||
+        (event.target instanceof HTMLElement &&
+          event.target.closest("input,textarea,select,[contenteditable=true]"))
+      )
+        return;
+      event.preventDefault();
+      interact();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [nearest?.id, own?.seat, connected, modal, socialOpen, boardOpen]);
+  useEffect(() => {
+    if (connected && area !== "village") room.send({ type: "board-open" });
+    else setBoardOpen(false);
+  }, [connected, area, room.send]);
+  useEffect(() => {
+    if (!room.invitation) return;
+    const timer = setTimeout(
+      () => room.dismissInvitation(),
+      Math.max(0, room.invitation.expires - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [room.invitation]);
+  function inviteActivity(kind: "chat" | "meeting") {
+    if (!socialPerson) return;
+    if (
+      room.send({
+        type: "activity-invite",
+        to: socialPerson.id,
+        kind,
+        area: kind === "chat" ? area : activityArea,
+      })
+    ) {
+      if (kind === "chat" && !media.mic) void media.toggle("audio");
+      notify("Ajakan dikirim ke " + socialPerson.name + ". Menunggu jawaban.");
+      setSocialOpen(false);
+    } else notify("Belum tersambung ke room.");
+  }
   function openProfile(id: string) {
     setProfileId(id);
     setDraftName(name);
@@ -617,11 +700,9 @@ export default function App({
                     {p.id === room.id ? " (you)" : ""}
                   </strong>
                   <small>
-                    {p.host
-                      ? "Space host"
-                      : p.meeting
-                        ? "In a meeting"
-                        : "Exploring the village"}
+                    {(SPACES.find((s) => s.id === p.area)?.name ||
+                      "Village square") +
+                      (p.seat ? " · duduk" : p.meeting ? " · meeting" : "")}
                   </small>
                 </div>
                 {p.mic ? <Mic size={14} /> : <MicOff size={14} />}{" "}
@@ -855,6 +936,8 @@ export default function App({
             )}
           </div>
           <World
+            board={room.board?.area === area ? room.board : null}
+            onBoard={() => setBoardOpen(true)}
             people={room.people}
             self={self}
             quality={quality}
@@ -991,7 +1074,7 @@ export default function App({
                 </div>
                 <div className="video-grid">
                   {media.camera && (
-                    <MediaTile stream={media.stream} name={name} muted />
+                    <MediaTile stream={media.stream} name={name} local muted />
                   )}
                   {visibleVideoIds.map((pid) => {
                     const p = room.people.find((p) => p.id === pid);
@@ -1034,6 +1117,7 @@ export default function App({
                 <MediaTile
                   stream={media.camera ? media.stream : null}
                   name={name}
+                  local
                   muted
                 />
                 {meetingTiles.map((p) => (
@@ -1212,6 +1296,179 @@ export default function App({
           </div>
         </footer>
       </div>
+      {connected && (
+        <div className="social-quickbar">
+          <button onClick={interact}>
+            <kbd>E</kbd>{" "}
+            {own?.seat
+              ? "Bangun dari kursi"
+              : nearest
+                ? "Sapa " + nearest.name
+                : "Interaksi"}
+          </button>
+          {area !== "village" && (
+            <>
+              <button
+                onClick={() => room.send({ type: own?.seat ? "stand" : "sit" })}
+              >
+                {own?.seat ? "Bangun" : "Duduk & meeting"}
+              </button>
+              <button onClick={() => setBoardOpen(true)}>Papan tulis</button>
+            </>
+          )}
+        </div>
+      )}
+      {room.invitation && connected && (
+        <aside
+          className="activity-invitation"
+          role="region"
+          aria-label="Undangan aktivitas"
+        >
+          <strong>
+            {room.invitation.name} mengajakmu{" "}
+            {room.invitation.kind === "chat"
+              ? "ngobrol dekat"
+              : "meeting di " +
+                SPACES.find((s) => s.id === room.invitation?.area)?.name}
+          </strong>
+          <p>
+            {room.invitation.kind === "chat"
+              ? "Jika diterima, mic kamu akan diaktifkan untuk percakapan dekat."
+              : "Kalian akan masuk bersama dan memakai kursi yang tersedia. Mic mengikuti pilihanmu."}
+          </p>
+          <div>
+            <button
+              onClick={() => {
+                const invite = room.invitation;
+                if (
+                  invite &&
+                  room.send({
+                    type: "activity-answer",
+                    id: invite.id,
+                    accept: true,
+                  })
+                ) {
+                  if (invite.kind === "chat" && !media.mic)
+                    void media.toggle("audio");
+                  room.dismissInvitation();
+                }
+              }}
+            >
+              {room.invitation.kind === "chat"
+                ? "Terima & nyalakan mic"
+                : "Terima ajakan meeting"}
+            </button>
+            <button
+              onClick={() => {
+                room.send({
+                  type: "activity-answer",
+                  id: room.invitation?.id,
+                  accept: false,
+                });
+                room.dismissInvitation();
+              }}
+            >
+              Tolak
+            </button>
+          </div>
+        </aside>
+      )}
+      {socialOpen && (
+        <div className="modal-backdrop" onClick={() => setSocialOpen(false)}>
+          <section
+            className="modal social-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="social-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Tutup interaksi"
+              onClick={() => setSocialOpen(false)}
+            >
+              <X size={20} />
+            </button>
+            <div className="eyebrow">LET’S CONNECT</div>
+            <h2 id="social-title">
+              {socialPerson
+                ? "Bersama " + socialPerson.name
+                : "Ada yang ingin dilakukan?"}
+            </h2>
+            <p>
+              {socialPerson
+                ? "Ngobrol dekat atau ajak berkumpul di rumah."
+                : "Dekati teman, atau buka People dan pilih Temui dari profilnya."}
+            </p>
+            {socialPerson && (
+              <>
+                <button
+                  className="primary-button"
+                  disabled={!canTalk}
+                  onClick={() => inviteActivity("chat")}
+                >
+                  <Mic size={16} /> Ajak ngobrol & nyalakan mic
+                </button>
+                {!canTalk && (
+                  <small>Dekati teman di area yang sama untuk ngobrol.</small>
+                )}
+                <label className="input-label" htmlFor="activity-house">
+                  Ajak meeting ke rumah
+                </label>
+                <select
+                  id="activity-house"
+                  className="text-input"
+                  value={activityArea}
+                  onChange={(e) => setActivityArea(e.target.value as AreaId)}
+                >
+                  {SPACES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="primary-button"
+                  onClick={() => inviteActivity("meeting")}
+                >
+                  <DoorOpen size={16} /> Kirim ajakan meeting
+                </button>
+              </>
+            )}
+            {area !== "village" && (
+              <div className="house-actions">
+                <button
+                  className="subtle-button"
+                  onClick={() => {
+                    room.send({ type: "sit" });
+                    setSocialOpen(false);
+                  }}
+                >
+                  Duduk & meeting di sini
+                </button>
+                <button
+                  className="subtle-button"
+                  onClick={() => {
+                    setBoardOpen(true);
+                    setSocialOpen(false);
+                  }}
+                >
+                  Buka papan tulis
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+      {boardOpen && connected && area !== "village" && (
+        <Whiteboard
+          board={room.board}
+          area={area}
+          host={self.host}
+          send={room.send}
+          onClose={() => setBoardOpen(false)}
+        />
+      )}
       {Object.entries(media.remote).map(([pid, stream]) => {
         const p = room.people.find((v) => v.id === pid);
         let v = 0;
@@ -1278,6 +1535,29 @@ export default function App({
                 </div>
                 <div className="eyebrow">VILLAGER PROFILE</div>
                 <h2 id="modal-title">{selectedProfile.name}</h2>
+                {selectedProfile.id !== self.id && (
+                  <div className="profile-social">
+                    <button
+                      className="primary-button"
+                      onClick={() => {
+                        room.send({ type: "follow", to: selectedProfile.id });
+                        setModal(null);
+                      }}
+                    >
+                      Temui {selectedProfile.name} <Navigation size={16} />
+                    </button>
+                    <button
+                      className="subtle-button"
+                      onClick={() => {
+                        setSocialTarget(selectedProfile.id);
+                        setSocialOpen(true);
+                        setModal(null);
+                      }}
+                    >
+                      Ajak ngobrol / meeting
+                    </button>
+                  </div>
+                )}
                 {profileId === self.id && (
                   <button
                     className="profile-sign-out"

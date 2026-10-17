@@ -5,6 +5,8 @@ import {
   type Surface,
 } from "./cozyMaterials";
 import { walkable, SPACES, TREES, LAMPS } from "../shared/spaces";
+import { personClear, SEATS, type Board } from "../shared/social";
+import { paintBoard } from "./boardPaint";
 import { createHuman, animateHuman } from "./avatar";
 import { useEffect, useRef } from "react";
 import * as T from "three";
@@ -17,6 +19,8 @@ export type WorldHandle = {
   home: () => void;
 };
 type Props = {
+  board: Board | null;
+  onBoard: () => void;
   people: Person[];
   self: Person;
   quality: string;
@@ -29,6 +33,8 @@ type Props = {
 };
 
 export function World({
+  board,
+  onBoard,
   people,
   self,
   quality,
@@ -40,8 +46,16 @@ export function World({
   handle,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
-  const live = useRef({ people, self, onMove, onPerson, onEnter });
-  live.current = { people, self, onMove, onPerson, onEnter };
+  const live = useRef({
+    people,
+    self,
+    onMove,
+    onPerson,
+    onEnter,
+    board,
+    onBoard,
+  });
+  live.current = { people, self, onMove, onPerson, onEnter, board, onBoard };
   useEffect(() => {
     const el = container.current!;
     let renderer: T.WebGLRenderer;
@@ -816,6 +830,19 @@ export function World({
       );
     }
     batchStatic(interior);
+    const boardCanvas = document.createElement("canvas");
+    boardCanvas.width = 1024;
+    boardCanvas.height = 512;
+    const boardContext = boardCanvas.getContext("2d")!;
+    const boardTexture = new T.CanvasTexture(boardCanvas);
+    boardTexture.colorSpace = T.SRGBColorSpace;
+    const boardMesh = new T.Mesh(
+      new T.PlaneGeometry(5, 2.1),
+      new T.MeshBasicMaterial({ map: boardTexture }),
+    );
+    boardMesh.position.set(0, 2.4, -8.17);
+    interior.add(boardMesh);
+    let lastBoardKey = "";
     interior.visible = false;
     const avatarMap = new Map<string, T.Group>();
     function avatar(p: Person) {
@@ -836,6 +863,7 @@ export function World({
       ring.rotation.x = -Math.PI / 2;
       const label = document.createElement("button");
       label.className = "world-person-label";
+      label.dataset.seated = p.seat ? "true" : "false";
       label.textContent =
         p.name + (p.id === live.current.self.id ? " · kamu" : "");
       label.setAttribute("aria-label", "Buka profil " + p.name);
@@ -866,9 +894,18 @@ export function World({
       ground = new T.Plane(new T.Vector3(0, 1, 0), -0.6);
     const destination = new T.Vector3();
     function valid(x: number, z: number) {
-      return walkable(x, z, live.current.self.area);
+      return (
+        walkable(x, z, live.current.self.area) &&
+        personClear(
+          { ...live.current.self, x: px, z: pz },
+          x,
+          z,
+          live.current.people,
+        )
+      );
     }
     const down = (e: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"]')) return;
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -913,6 +950,11 @@ export function World({
           ),
           camera,
         );
+        if (interior.visible && ray.intersectObject(boardMesh).length) {
+          live.current.onBoard();
+          pointer.down = false;
+          return;
+        }
         const hit = ray.intersectObjects([...avatarMap.values()], true)[0];
         if (hit) {
           let o: T.Object3D | null = hit.object;
@@ -997,6 +1039,22 @@ export function World({
         jetMesh.instanceMatrix.needsUpdate = true;
       }
       let dirty = outdoors;
+      const boardKey =
+        (live.current.self.area || "village") +
+        ":" +
+        (live.current.board?.revision ?? -1);
+      if (boardKey !== lastBoardKey) {
+        paintBoard(boardContext, live.current.board, 1024, 512);
+        boardContext.fillStyle = "#294d3e";
+        boardContext.font = "22px sans-serif";
+        for (const [i, note] of (live.current.board?.notes || [])
+          .slice(-5)
+          .entries())
+          boardContext.fillText(note.text.slice(0, 70), 22, 38 + i * 36);
+        boardTexture.needsUpdate = true;
+        lastBoardKey = boardKey;
+        dirty = true;
+      }
       const dt = Math.min((now - lastFrame) / 1000, 0.05);
       lastFrame = now;
       let dx =
@@ -1026,6 +1084,11 @@ export function World({
           dx /= len;
           dz /= len;
         }
+      }
+      if (live.current.self.seat) {
+        dx = 0;
+        dz = 0;
+        target = null;
       }
       const nx = px + dx * 5 * dt,
         nz = pz + dz * 5 * dt;
@@ -1079,7 +1142,18 @@ export function World({
           g.rotation.y = Math.atan2(p.x - ox, p.z - oz);
           g.position.y = Math.sin(now * 0.012) * 0.06;
         } else g.position.y = 0;
-        animateHuman(g, now, Math.hypot(p.x - ox, p.z - oz) > 0.01);
+        if (g.userData.seat !== p.seat) {
+          dirty = true;
+          g.userData.seat = p.seat;
+          (g.userData.label as HTMLButtonElement).dataset.seated = p.seat
+            ? "true"
+            : "false";
+        }
+        if (p.seat) {
+          g.rotation.y = SEATS.find((s) => s.id === p.seat)?.angle || 0;
+          g.position.y = 1.17 - (0.62 + 0.98 * (g.userData.scale || 1));
+        }
+        animateHuman(g, now, Math.hypot(p.x - ox, p.z - oz) > 0.01, !!p.seat);
       }
       for (const [id, g] of avatarMap)
         if (!all.some((p) => p.id === id)) {
@@ -1171,6 +1245,7 @@ export function World({
         (g.userData.label as HTMLButtonElement)?.remove();
       for (const texture of textures.values()) texture.dispose();
       for (const material of materials.values()) material.dispose();
+      boardTexture.dispose();
       renderer.dispose();
       el.removeChild(renderer.domElement);
       handle.current = null;

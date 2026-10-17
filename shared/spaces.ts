@@ -200,7 +200,7 @@ export function spawnPoint(
       walkable(x, z, area) &&
       !people.some(
         (p) =>
-          (p.area || "village") === area && Math.hypot(p.x - x, p.z - z) < 0.9,
+          (p.area || "village") === area && Math.hypot(p.x - x, p.z - z) < 1.05,
       ),
   );
   return { x: point?.[0] ?? points[0][0], z: point?.[1] ?? points[0][1] };

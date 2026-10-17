@@ -99,3 +99,7 @@ Semua geometri desa dibuat sendiri. Font DM Sans dan Manrope didistribusikan mel
 ### Login and founder dashboard
 
 The live Worker sends anonymous visitors to `/login` before loading the village. First Google sign-in registers the account. `/founder` is restricted server-side to the verified Google email `elviskudo@gmail.com`. Its persisted counters distinguish browser visits, unique browsers, registered users, joined users, room connections and meeting participations; historical counts start at feature activation. Account and join-history lists use 25-row pagination. See `docs/cloudflare-google-setup.md` for definitions. `npm run test:founder` runs an isolated local test Worker; its session-seeding endpoint is never deployed in production.
+
+### Social interactions
+
+Use **E** near another participant to invite proximity voice or a meeting in a house. The recipient accepts/declines; microphone permission stays explicit. **People → profile → Temui** locates a participant across houses. Inside a house, **Duduk & meeting**, **E / Bangun**, and **Papan tulis** control seating and collaboration. Each house has an independent persisted board supporting strokes and notes; only the room host can clear it, with confirmation. Collision and seat occupancy are enforced by the server as well as the client. See the setup guide for capacity and media-verification limits.

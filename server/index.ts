@@ -8,6 +8,15 @@ import {
 } from "./auth";
 export { AuthStore } from "./auth";
 import { resolveRoom } from "../shared/room";
+import {
+  personClear,
+  freePoint,
+  SEATS,
+  emptyBoard,
+  AVATAR_GAP,
+  type Board,
+  type ActivityInvite,
+} from "../shared/social";
 import { WORLD_BOUNDS } from "../shared/world";
 import {
   walkable,
@@ -179,7 +188,10 @@ export class Room extends DurableObject<Env> {
       } catch {}
     }
   }
-  async fetch(request: Request) {
+  async fetch(request: Request): Promise<Response> {
+    return this.ctx.blockConcurrencyWhile(() => this.admit(request));
+  }
+  async admit(request: Request) {
     if (this.sockets().length >= 20)
       return json({ error: "This village is full. Try again shortly." }, 503);
     const u = new URL(request.url);
@@ -247,7 +259,144 @@ export class Room extends DurableObject<Env> {
     this.sync();
     return new Response(null, { status: 101, webSocket: client });
   }
-  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+  relocate(
+    socket: WebSocket,
+    area: Person["area"],
+    sitting = false,
+    meeting = false,
+    near?: Person,
+  ) {
+    const a = socket.deserializeAttachment() as Attachment;
+    const others = this.people().filter((p) => p.id !== a.person.id);
+    const seat =
+      sitting && area !== "village"
+        ? SEATS.find(
+            (s) =>
+              !others.some(
+                (p) =>
+                  p.area === area &&
+                  (p.seat === s.id ||
+                    Math.hypot(p.x - s.x, p.z - s.z) < AVATAR_GAP),
+              ),
+          )
+        : undefined;
+    const point =
+      seat ||
+      (near && freePoint(area || "village", others, near, a.person.id)) ||
+      spawnPoint(area || "village", others);
+    Object.assign(a.person, {
+      area,
+      meeting,
+      seat: seat?.id,
+      x: point.x,
+      z: point.z,
+    });
+    socket.serializeAttachment(a);
+    socket.send(
+      JSON.stringify({ type: "relocate", x: point.x, z: point.z, area }),
+    );
+  }
+  async updateBoard(ws: WebSocket, a: Attachment, m: any) {
+    const area = a.person.area || "village";
+    if (area === "village") return;
+    if (m.type === "board-open") {
+      ws.send(
+        JSON.stringify({
+          type: "board",
+          board:
+            (await this.ctx.storage.get<Board>("board:" + area)) ||
+            emptyBoard(area),
+        }),
+      );
+      return;
+    }
+    const note = typeof m.text === "string" ? m.text.trim().slice(0, 1000) : "";
+    const stroke = m.stroke;
+    if (
+      m.type === "board-stroke" &&
+      (!stroke ||
+        !/^[a-z0-9-]{1,64}$/i.test(stroke.id || "") ||
+        !["#294d3e", "#c87855", "#4285f4", "#222222"].includes(stroke.color) ||
+        ![2, 4, 7].includes(stroke.width) ||
+        !Array.isArray(stroke.points) ||
+        stroke.points.length < 2 ||
+        stroke.points.length > 128 ||
+        !stroke.points.every(
+          (p: any) =>
+            Array.isArray(p) &&
+            p.length === 2 &&
+            p.every(
+              (v: any) =>
+                typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1,
+            ),
+        ))
+    )
+      return;
+    if (m.type === "board-note" && !note) return;
+    if (m.type === "board-clear" && !a.person.host) {
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          message: "Hanya host yang dapat membersihkan papan.",
+        }),
+      );
+      return;
+    }
+    const board = await this.ctx.storage
+      .transaction(async (tx) => {
+        const b = (await tx.get<Board>("board:" + area)) || emptyBoard(area);
+        if (m.type === "board-stroke") {
+          if (b.strokes.some((s) => s.id === stroke.id)) return b;
+          if (b.strokes.length >= 300)
+            throw Error("Papan penuh. Minta host membersihkan papan.");
+          b.strokes.push({
+            id: stroke.id,
+            author: a.person.name,
+            color: stroke.color,
+            width: stroke.width,
+            points: stroke.points,
+          });
+        } else if (m.type === "board-note") {
+          if (b.notes.length >= 40)
+            throw Error("Catatan penuh. Minta host membersihkan papan.");
+          b.notes.push({
+            id: crypto.randomUUID(),
+            author: a.person.name,
+            text: note,
+          });
+        } else if (m.type === "board-clear") {
+          if (m.revision !== b.revision)
+            throw Error(
+              "Papan baru diperbarui teman. Periksa lagi sebelum membersihkan.",
+            );
+          b.strokes = [];
+          b.notes = [];
+        } else return b;
+        b.revision++;
+        if (new TextEncoder().encode(JSON.stringify(b)).byteLength > 100000)
+          throw Error("Papan penuh. Minta host membersihkan papan.");
+        await tx.put("board:" + area, b);
+        return b;
+      })
+      .catch((e: Error) => {
+        ws.send(JSON.stringify({ type: "error", message: e.message }));
+        return null;
+      });
+    if (board)
+      for (const peer of this.sockets())
+        if (
+          ((peer.deserializeAttachment() as Attachment).person.area ||
+            "village") === area
+        )
+          peer.send(JSON.stringify({ type: "board", board }));
+  }
+  async webSocketMessage(
+    ws: WebSocket,
+    message: string | ArrayBuffer,
+  ): Promise<void> {
+    return this.ctx.blockConcurrencyWhile(() => this.receive(ws, message));
+  }
+  async receive(ws: WebSocket, message: string | ArrayBuffer) {
     if (typeof message !== "string" || message.length > 16384) {
       ws.close(1009, "Message too large");
       return;
@@ -286,7 +435,184 @@ export class Room extends DurableObject<Env> {
       return;
     }
     if (!m || typeof m !== "object") return;
+    if (typeof m.type === "string" && m.type.startsWith("board-")) {
+      await this.updateBoard(ws, a, m);
+      return;
+    }
     switch (m.type) {
+      case "follow": {
+        const target = this.people().find(
+          (p) => p.id === m.to && p.id !== a.person.id,
+        );
+        if (target)
+          this.relocate(ws, target.area || "village", false, false, target);
+        this.sync();
+        return;
+      }
+      case "sit":
+        if (a.person.area && a.person.area !== "village") {
+          if (this.locks[a.person.area] && !a.person.host) {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Meeting sedang dikunci host.",
+              }),
+            );
+            return;
+          }
+          const free = SEATS.find(
+            (s) =>
+              !this.people().some(
+                (p) =>
+                  p.id !== a.person.id &&
+                  p.area === a.person.area &&
+                  (p.seat === s.id ||
+                    Math.hypot(p.x - s.x, p.z - s.z) < AVATAR_GAP),
+              ),
+          );
+          if (!free) {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Semua kursi sedang terisi.",
+              }),
+            );
+            return;
+          }
+          this.relocate(ws, a.person.area, true, true);
+          if (a.userId && !a.person.meeting)
+            await this.env.AUTH.get(
+              this.env.AUTH.idFromName("identity"),
+            ).meeting();
+          this.sync();
+        }
+        return;
+      case "stand":
+        if (a.person.seat) {
+          this.relocate(
+            ws,
+            a.person.area || "village",
+            false,
+            a.person.meeting,
+            a.person,
+          );
+          this.sync();
+        }
+        return;
+      case "activity-invite": {
+        const peer = this.sockets().find(
+          (s) =>
+            (s.deserializeAttachment() as Attachment).person.id === m.to &&
+            s !== ws,
+        );
+        if (
+          !peer ||
+          !["chat", "meeting"].includes(m.kind) ||
+          !validArea(m.area)
+        )
+          return;
+        const target = (peer.deserializeAttachment() as Attachment).person;
+        if (
+          m.kind === "chat" &&
+          ((target.area || "village") !== (a.person.area || "village") ||
+            Math.hypot(target.x - a.person.x, target.z - a.person.z) > 12)
+        )
+          return;
+        if (
+          m.kind === "meeting" &&
+          (m.area === "village" || this.locks[m.area])
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Pilih rumah dengan meeting yang terbuka.",
+            }),
+          );
+          return;
+        }
+        const invite: ActivityInvite = {
+          id: crypto.randomUUID(),
+          from: a.person.id,
+          name: a.person.name,
+          to: target.id,
+          area: m.kind === "chat" ? a.person.area || "village" : m.area,
+          kind: m.kind,
+          expires: Date.now() + 120000,
+        };
+        await this.ctx.storage.put("invite:" + target.id, invite);
+        peer.send(JSON.stringify({ type: "activity-invite", invite }));
+        return;
+      }
+      case "activity-answer": {
+        const invite = await this.ctx.storage.get<ActivityInvite>(
+          "invite:" + a.person.id,
+        );
+        if (!invite || invite.id !== m.id || invite.expires < Date.now()) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Undangan sudah berakhir.",
+            }),
+          );
+          return;
+        }
+        await this.ctx.storage.delete("invite:" + a.person.id);
+        const from = this.sockets().find(
+          (s) =>
+            (s.deserializeAttachment() as Attachment).person.id === invite.from,
+        );
+        if (m.accept !== true) {
+          from?.send(
+            JSON.stringify({
+              type: "error",
+              message: a.person.name + " belum menerima ajakan.",
+            }),
+          );
+          return;
+        }
+        if (!from) return;
+        const inviter = (from.deserializeAttachment() as Attachment).person;
+        if (invite.kind === "meeting") {
+          if (this.locks[invite.area]) {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Meeting ini sedang dikunci.",
+              }),
+            );
+            return;
+          }
+          this.relocate(from, invite.area, true, true);
+          this.relocate(ws, invite.area, true, true);
+          this.sync();
+          for (const peer of [from, ws]) {
+            const member = peer.deserializeAttachment() as Attachment;
+            if (member.userId)
+              await this.env.AUTH.get(
+                this.env.AUTH.idFromName("identity"),
+              ).meeting();
+          }
+        } else if (
+          (inviter.area || "village") === (a.person.area || "village") &&
+          Math.hypot(inviter.x - a.person.x, inviter.z - a.person.z) <= 12
+        ) {
+          from.send(
+            JSON.stringify({
+              type: "error",
+              message:
+                a.person.name +
+                " menerima ajakan ngobrol. Aktifkan mic untuk berbicara.",
+            }),
+          );
+        } else
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: "Teman sudah berpindah. Dekati lalu ajak kembali.",
+            }),
+          );
+        return;
+      }
       case "move":
         if (Number.isFinite(m.x) && Number.isFinite(m.z)) {
           const x = Math.max(
@@ -296,12 +622,22 @@ export class Room extends DurableObject<Env> {
             z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, m.z));
           if (
             Math.hypot(x - a.person.x, z - a.person.z) <= 3 &&
-            walkable(x, z, a.person.area)
+            !a.person.seat &&
+            walkable(x, z, a.person.area) &&
+            personClear(a.person, x, z, this.people())
           ) {
             a.person.x = x;
             a.person.z = z;
             this.broadcast({ type: "move", id: a.person.id, x, z }, ws);
-          }
+          } else if (Math.hypot(x - a.person.x, z - a.person.z) > 0.02)
+            ws.send(
+              JSON.stringify({
+                type: "relocate",
+                x: a.person.x,
+                z: a.person.z,
+                area: a.person.area || "village",
+              }),
+            );
         }
         break;
       case "profile":
@@ -325,6 +661,7 @@ export class Room extends DurableObject<Env> {
         if (!validArea(m.area)) return;
         a.person.area = m.area;
         a.person.meeting = false;
+        a.person.seat = undefined;
         Object.assign(
           a.person,
           spawnPoint(
@@ -344,6 +681,7 @@ export class Room extends DurableObject<Env> {
       case "navigate":
         a.person.area = "village";
         a.person.meeting = false;
+        a.person.seat = undefined;
         if (Number.isInteger(m.place) && m.place >= 0 && m.place < 4) {
           const points = [
             [3.5, 9],
@@ -351,7 +689,37 @@ export class Room extends DurableObject<Env> {
             [-15, 14],
             [-13, -10],
           ];
-          [a.person.x, a.person.z] = points[m.place];
+          const near = {
+            ...a.person,
+            x: points[m.place][0],
+            z: points[m.place][1],
+          };
+          const clear =
+            walkable(near.x, near.z, "village") &&
+            !this.people().some(
+              (p) =>
+                p.id !== a.person.id &&
+                (p.area || "village") === "village" &&
+                Math.hypot(p.x - near.x, p.z - near.z) < AVATAR_GAP,
+            );
+          const point =
+            (clear
+              ? near
+              : freePoint("village", this.people(), near, a.person.id)) ||
+            spawnPoint(
+              "village",
+              this.people().filter((p) => p.id !== a.person.id),
+            );
+          a.person.x = point.x;
+          a.person.z = point.z;
+          ws.send(
+            JSON.stringify({
+              type: "relocate",
+              x: point.x,
+              z: point.z,
+              area: "village",
+            }),
+          );
           this.broadcast(
             { type: "move", id: a.person.id, x: a.person.x, z: a.person.z },
             ws,
@@ -448,7 +816,12 @@ export class Room extends DurableObject<Env> {
     )
       this.sync();
   }
-  async webSocketClose(ws: WebSocket) {
+  async webSocketClose(ws: WebSocket): Promise<void> {
+    return this.ctx.blockConcurrencyWhile(() => this.closeSocket(ws));
+  }
+  async closeSocket(ws: WebSocket) {
+    const departed = ws.deserializeAttachment() as Attachment | null;
+    if (departed) await this.ctx.storage.delete("invite:" + departed.person.id);
     try {
       ws.close();
     } catch {}

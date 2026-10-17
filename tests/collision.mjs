@@ -18,8 +18,19 @@ test("twenty arrivals get distinct walkable spawn points in every area", () => {
     for (let i = 0; i < 20; i++) {
       const p = spawnPoint(area, people);
       assert.equal(walkable(p.x, p.z, area), true);
-      assert.ok(people.every((o) => Math.hypot(p.x - o.x, p.z - o.z) >= 0.9));
+      assert.ok(people.every((o) => Math.hypot(p.x - o.x, p.z - o.z) >= 1.05));
       people.push({ ...p, area });
     }
   }
+});
+
+
+test("avatars block overlapping and crossing movement, allow separation, and isolate houses", async () => {
+  const {personClear} = await import("../shared/social.ts");
+  const self={id:"a",x:0,z:0,area:"village"};
+  assert.equal(personClear(self,2,0,[{id:"b",x:1.5,z:0,area:"village"}]),false);
+  assert.equal(personClear(self,3,0,[{id:"b",x:1.5,z:0,area:"village"}]),false);
+  assert.equal(personClear(self,0,2,[{id:"b",x:1.5,z:0,area:"village"}]),true);
+  assert.equal(personClear(self,2,0,[{id:"b",x:1.5,z:0,area:"hall"}]),true);
+  assert.equal(personClear(self,-1,0,[{id:"b",x:.5,z:0,area:"village"}]),true);
 });

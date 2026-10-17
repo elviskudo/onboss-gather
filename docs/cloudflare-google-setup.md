@@ -78,3 +78,15 @@ Jalankan `npm run test:founder` untuk uji integrasi dengan entrypoint fixture lo
 Undangan memakai alamat tetap `/rooms/ROOM_ID` (contoh `/rooms/hallstatt-village`), bukan ID pengguna atau sesi login. Link tersebut membawa room yang sama melewati pengalihan login dan callback OAuth. Link lama `/?room=ROOM_ID` tetap didukung. Parser room dipakai bersama oleh klien dan server, dengan validasi seluruh ID.
 
 Setelah login, akun otomatis tersambung ke multiplayer pada room tujuan; mic dan kamera tetap mengikuti pilihan pengguna. Invite friends menyalin alamat room tersebut. Room lain memakai Durable Object lain, sehingga peserta dan chat terpisah. Untuk menguji dua akun bersamaan, gunakan dua browser/profil atau perangkat dengan cookie terpisah; mengganti akun secara bergantian dalam satu sesi browser bukan dua peserta yang hadir bersamaan.
+
+## Interaksi sosial, kursi, dan papan tulis
+
+Masuk room yang sama lalu gunakan **People → profil → Temui** untuk mendekati teman, termasuk jika ia berada di rumah lain. Daftar peserta menunjukkan lokasi/keadaan duduk. Admission, pesan WebSocket dan perpindahan state diproses berurutan agar dua orang yang masuk bersamaan memperoleh posisi berbeda serta satu host. Collision tubuh memakai jarak minimum 1,05 unit dan pemeriksaan lintasan pada klien/server; snapshot server mengoreksi gerak yang ditolak.
+
+**E** membuka interaksi dengan teman yang dekat (radius percakapan 12 unit), atau membangunkan avatar yang sedang duduk. Pilihan **Ajak ngobrol & nyalakan mic** meminta izin mic browser; teman dapat menerima/menolak. Audio proximity memakai aturan jarak dan rumah yang sudah ada. Jangan menganggap percakapan proximity sebagai percakapan privat dua orang: peserta lain yang dekat dan berada di area/audio space yang sama juga dapat mendengar.
+
+Ajakan meeting memilih salah satu dari empat rumah. Setelah penerima menyetujui, kedua peserta masuk rumah yang sama dan menggunakan kursi yang tersedia. Ada enam kursi per rumah; peserta lain dapat berdiri dalam meeting jika kursi penuh. Tombol **Duduk & meeting** dan **Bangun** tersedia dalam rumah. Mic mengikuti pilihan pengguna dan tidak diaktifkan otomatis hanya karena menerima ajakan meeting.
+
+Setiap rumah memiliki papan tulis terpisah yang bisa dibuka lewat tombol atau permukaan papan di 3D. Coretan dan catatan tersimpan di Room Durable Object, disinkronkan ke peserta di rumah tersebut, dan dibaca kembali saat masuk/reconnect. Host dapat membersihkan papan melalui konfirmasi dengan pemeriksaan revisi agar perubahan baru tidak terhapus tanpa diperiksa. Maksimum 128 titik per coretan (coretan panjang dipadatkan), 300 coretan, 40 catatan, dan total data papan 100.000 byte. Tidak ada endpoint pengujian yang dideploy.
+
+Voice diuji menggunakan mic sintetis di dua browser lokal. Koneksi suara lintas jaringan/perangkat nyata masih memerlukan verifikasi; status TURN/managed media pada batas rilis sebelumnya tetap berlaku.

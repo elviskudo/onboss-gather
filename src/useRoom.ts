@@ -1,5 +1,6 @@
 import type { AreaId } from "../shared/spaces";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Board, ActivityInvite } from "../shared/social";
 import type { Person, Message } from "./types";
 
 type Status =
@@ -10,6 +11,8 @@ const PING_INTERVAL = 12_000;
 const PONG_TIMEOUT = 8_000;
 
 export function useRoom(onNotice: (s: string) => void) {
+  const [board, setBoard] = useState<Board | null>(null);
+  const [invitation, setInvitation] = useState<ActivityInvite | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [id, setId] = useState("local");
@@ -189,6 +192,18 @@ export function useRoom(onNotice: (s: string) => void) {
         }
         if (!live.current) return;
         if (
+          m.type === "board" &&
+          m.board &&
+          typeof m.board.revision === "number"
+        )
+          setBoard(m.board);
+        if (
+          m.type === "activity-invite" &&
+          m.invite &&
+          m.invite.expires > Date.now()
+        )
+          setInvitation(m.invite);
+        if (
           m.type === "relocate" &&
           Number.isFinite(m.x) &&
           Number.isFinite(m.z)
@@ -252,6 +267,8 @@ export function useRoom(onNotice: (s: string) => void) {
     setPeople([]);
     setId("local");
     setMessages([]);
+    setBoard(null);
+    setInvitation(null);
     setLocked(false);
     setSpawn(null);
     setStatus("exploring");
@@ -299,6 +316,9 @@ export function useRoom(onNotice: (s: string) => void) {
       Object.assign(identity.current, { name, color, avatar, bio });
   };
   return {
+    board,
+    invitation,
+    dismissInvitation: () => setInvitation(null),
     updateProfile,
     people,
     messages,

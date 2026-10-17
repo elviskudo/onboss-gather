@@ -7,6 +7,7 @@ export type Person = {
   avatar?: AvatarId;
   area?: AreaId;
   bio?: string;
+  seat?: string;
   x: number;
   z: number;
   mic: boolean;
