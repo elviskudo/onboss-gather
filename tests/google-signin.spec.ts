@@ -14,9 +14,7 @@ test("Google sign in preserves the invited room and is visible on mobile", async
     );
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?room=team-meeting");
-  const link = page
-    .locator(".top-actions")
-    .getByRole("link", { name: "Sign in with Google" });
+  const link = page.getByRole("link", { name: "Sign in with Google" });
   await expect(link).toBeVisible();
   await expect(link).toHaveAttribute(
     "href",
@@ -28,14 +26,7 @@ test("Google sign in preserves the invited room and is visible on mobile", async
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page
-    .getByRole("button", {
-      name: preview ? "Customize avatar" : "Enter village",
-    })
-    .click();
-  await expect(
-    page.getByRole("dialog").getByRole("link", { name: "Sign in with Google" }),
-  ).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
   await page.screenshot({
     path: `docs/google-signin-${preview ? "preview" : "full"}-mobile.png`,
     animations: "disabled",
@@ -49,13 +40,10 @@ test("missing OAuth configuration shows a useful message without a broken Google
     r.fulfill({ json: { required: true, configured: false, user: null } }),
   );
   await page.goto("/");
-  await page
-    .getByRole("button", {
-      name: preview ? "Customize avatar" : "Enter village",
-    })
-    .click();
   await expect(
-    page.getByText("Login Google menunggu konfigurasi pemilik aplikasi."),
+    page.getByText(
+      "Login Google sedang disiapkan. Silakan kembali sebentar lagi.",
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Sign in with Google" }),

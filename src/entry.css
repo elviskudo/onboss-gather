@@ -1,0 +1,573 @@
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  background: #fafbf5;
+  color: #344e3b;
+  font-family: Manrope, sans-serif;
+}
+.login-story {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 46px 56px;
+  color: #fff;
+  background:
+    linear-gradient(180deg, #173d2e90, #173d2ee8),
+    url("/login-village.jpg") center/cover;
+  overflow: hidden;
+}
+.login-story::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 0%, #c8e4aa20, transparent 65%);
+  pointer-events: none;
+}
+.login-brand {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  color: inherit;
+  text-decoration: none;
+  width: fit-content;
+}
+.login-brand span {
+  color: #b7cc8c;
+  margin-left: -8px;
+}
+.login-story-copy {
+  position: relative;
+  z-index: 1;
+  margin: 65px 0;
+}
+.login-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.1px;
+}
+.login-kicker > span {
+  width: 6px;
+  height: 6px;
+  background: #d5e0ad;
+  border-radius: 50%;
+}
+.login-story h1 {
+  font-size: clamp(45px, 5.2vw, 79px);
+  line-height: 1.12;
+  letter-spacing: -4px;
+  font-weight: 500;
+  margin: 24px 0;
+}
+.login-story h1 em {
+  font-style: normal;
+  color: #dce5b8;
+}
+.login-story-copy > p {
+  font-size: 14px;
+  line-height: 1.9;
+  max-width: 340px;
+  color: #e2ead8;
+}
+.login-features {
+  display: flex;
+  gap: 22px;
+  margin-top: 33px;
+  font-size: 11px;
+  color: #e8eddd;
+}
+.login-features span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.login-story-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #cfdbbf;
+}
+.login-story-footer span {
+  letter-spacing: 0.4px;
+}
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 70px 42px;
+}
+.login-card {
+  max-width: 355px;
+  width: 100%;
+}
+.login-mark {
+  width: 60px;
+  height: 60px;
+  border: 1px solid #dfe5ce;
+  background: #eef1e2;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #7a9461;
+  margin-bottom: 30px;
+}
+.login-card > .login-kicker {
+  color: #7c8a69;
+  font-size: 9px;
+  letter-spacing: 1.6px;
+}
+.login-card h2 {
+  font-size: 35px;
+  font-weight: 500;
+  letter-spacing: -1.8px;
+  margin: 14px 0;
+}
+.login-description {
+  font-size: 13px;
+  line-height: 1.85;
+  color: #7b8673;
+  margin: 15px 0 32px;
+}
+.login-card .google-sign-in {
+  width: 100%;
+  min-height: 48px;
+  font-size: 13px;
+}
+.login-register {
+  font-size: 11px;
+  line-height: 1.85;
+  text-align: center;
+  color: #88917e;
+  margin: 18px 0 30px;
+}
+.login-trust {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-top: 23px;
+  border-top: 1px solid #e1e6d8;
+  color: #7a866d;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.login-trust svg {
+  flex-shrink: 0;
+  color: #8a9e70;
+}
+.login-privacy {
+  font-size: 9px;
+  line-height: 1.8;
+  color: #98a08f;
+  margin: 16px 0;
+}
+.login-bottom {
+  position: absolute;
+  bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: #a3ab97;
+}
+.login-status {
+  font-size: 13px;
+  color: #7b8673;
+  padding: 16px 0;
+}
+.login-retry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #e7edd9;
+  border: 1px solid #cbd9ba;
+  border-radius: 9px;
+  padding: 12px 20px;
+  color: #405e43;
+}
+.entry-state {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: #f5f6ea;
+  color: #4c654b;
+  padding: 30px;
+  gap: 18px;
+}
+.entry-state a {
+  color: inherit;
+}
+.founder-entry {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 11px;
+  color: #5f724a;
+  text-decoration: none;
+  border: 1px solid #d5dfc6;
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #f2f5e8;
+}
+.founder-page {
+  min-height: 100dvh;
+  background: #f5f6ee;
+  color: #3c513c;
+  font-family: Manrope, sans-serif;
+}
+.founder-header {
+  padding: 20px 5%;
+  background: #fcfcf7;
+  border-bottom: 1px solid #e4e7d9;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+.founder-header > div {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+.founder-back {
+  color: #697c5c;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  font-size: 12px;
+}
+.founder-page button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 11px;
+  color: #587048;
+  background: #fafbf5;
+  border: 1px solid #d8dfce;
+  border-radius: 8px;
+  padding: 10px 13px;
+  cursor: pointer;
+}
+.founder-page button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.founder-content {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 45px 5%;
+}
+.founder-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+.founder-title .login-kicker {
+  color: #8b9a6f;
+}
+.founder-title h1 {
+  font-size: 35px;
+  letter-spacing: -1.5px;
+  font-weight: 500;
+  margin: 13px 0;
+}
+.founder-title p {
+  color: #8b957f;
+  font-size: 13px;
+}
+.founder-owner {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  border: 1px solid #dae3cb;
+  background: #edf2e1;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin: 28px 0 20px;
+  font-size: 12px;
+}
+.founder-owner span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.founder-owner small {
+  color: #84916e;
+  font-size: 10px;
+}
+.founder-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.founder-stats article {
+  background: #fdfdf8;
+  border: 1px solid #e2e7d7;
+  border-radius: 15px;
+  padding: 23px;
+}
+.founder-stats p {
+  font-size: 11px;
+  margin: 0 0 14px;
+  color: #7f8e70;
+}
+.founder-stats strong {
+  display: block;
+  font-size: 35px;
+  letter-spacing: -1.5px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.founder-stats small {
+  font-size: 10px;
+  color: #9aa28c;
+}
+.founder-section {
+  margin-top: 26px;
+  background: #fdfdf8;
+  border: 1px solid #e2e7d7;
+  border-radius: 15px;
+  overflow: hidden;
+}
+.founder-section-title {
+  padding: 23px 24px 18px;
+}
+.founder-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.founder-section h2 span {
+  font-size: 10px;
+  background: #eaf0db;
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+.founder-section-title p {
+  margin: 0;
+  font-size: 11px;
+  color: #929d85;
+  line-height: 1.8;
+}
+.founder-table-wrap {
+  overflow-x: auto;
+}
+.founder-section table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.founder-section th {
+  font-weight: 500;
+  background: #f3f6e9;
+  color: #899579;
+  font-size: 10px;
+  padding: 13px 24px;
+}
+.founder-section td {
+  padding: 15px 24px;
+  border-bottom: 1px solid #eff1e7;
+  color: #6c7c5d;
+}
+.founder-section td strong {
+  display: block;
+  font-weight: 600;
+  color: #4a6242;
+}
+.founder-section td small {
+  display: block;
+  font-size: 10px;
+  color: #9aa28e;
+  margin-top: 5px;
+}
+.founder-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  font-size: 10px;
+  color: #8d997d;
+}
+.founder-pager > div {
+  display: flex;
+  gap: 6px;
+}
+.founder-pager button {
+  padding: 5px;
+}
+.founder-empty {
+  text-align: center;
+  font-size: 12px;
+  padding: 25px;
+  color: #95a085;
+}
+.founder-notes {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #9aa38c;
+  margin-top: 25px;
+  max-width: 800px;
+}
+.founder-error {
+  padding: 16px;
+  background: #f8e9df;
+  color: #945d44;
+  border-radius: 9px;
+  font-size: 12px;
+}
+.founder-refresh {
+  flex-shrink: 0;
+}
+@media (max-width: 850px) {
+  .login-story {
+    padding: 35px;
+  }
+  .login-story h1 {
+    font-size: 52px;
+    letter-spacing: -2.5px;
+  }
+  .login-story-footer {
+    flex-direction: column;
+  }
+  .login-form-side {
+    padding: 50px 28px;
+  }
+  .login-features {
+    gap: 13px;
+  }
+  .founder-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .founder-entry span {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-story {
+    min-height: 300px;
+    padding: 25px 28px;
+  }
+  .login-brand {
+    font-size: 22px;
+  }
+  .login-story-copy {
+    margin: 27px 0 12px;
+  }
+  .login-story h1 {
+    font-size: 38px;
+    letter-spacing: -1.8px;
+    line-height: 1.15;
+    margin: 14px 0;
+  }
+  .login-story-copy > p,
+  .login-features,
+  .login-story-footer {
+    display: none;
+  }
+  .login-kicker {
+    font-size: 8px;
+  }
+  .login-form-side {
+    padding: 33px 28px 65px;
+    align-items: start;
+  }
+  .login-card h2 {
+    font-size: 29px;
+  }
+  .login-mark {
+    display: none;
+  }
+  .login-description {
+    margin: 12px 0 22px;
+  }
+  .login-card > .login-kicker {
+    font-size: 8px;
+  }
+  .login-register {
+    margin-bottom: 20px;
+  }
+  .login-bottom {
+    bottom: 22px;
+  }
+  .founder-header {
+    padding: 17px 20px;
+  }
+  .founder-header > div {
+    gap: 10px;
+  }
+  .founder-back {
+    font-size: 10px;
+  }
+  .founder-back svg {
+    display: none;
+  }
+  .founder-header button {
+    font-size: 10px;
+    padding: 8px;
+  }
+  .founder-content {
+    padding: 30px 20px;
+  }
+  .founder-title {
+    align-items: start;
+  }
+  .founder-title h1 {
+    font-size: 27px;
+  }
+  .founder-title p {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .founder-refresh {
+    font-size: 10px !important;
+    padding: 8px !important;
+  }
+  .founder-owner {
+    flex-direction: column;
+    font-size: 11px;
+  }
+  .founder-stats {
+    gap: 10px;
+  }
+  .founder-stats article {
+    padding: 17px;
+  }
+  .founder-stats strong {
+    font-size: 28px;
+  }
+  .founder-stats small {
+    line-height: 1.8;
+    display: block;
+  }
+  .founder-section-title {
+    padding: 20px;
+  }
+  .founder-section td,
+  .founder-section th {
+    padding: 13px 20px;
+  }
+}

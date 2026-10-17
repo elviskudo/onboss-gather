@@ -3,6 +3,7 @@ import {
   getSession,
   authRequired,
   sessionKey,
+  isFounder,
   type AuthEnv,
 } from "./auth";
 export { AuthStore } from "./auth";
@@ -84,8 +85,29 @@ export default {
     }
     if (url.pathname.startsWith("/api/"))
       return json({ error: "Not found" }, 404);
+    if (["/", "/index.html", "/login", "/founder"].includes(url.pathname)) {
+      const session = await getSession(request, env);
+      if (authRequired(request, env) && !session && url.pathname !== "/login") {
+        const target = new URL("/login", url.origin);
+        if (url.searchParams.has("room"))
+          target.searchParams.set("room", url.searchParams.get("room")!);
+        if (url.pathname === "/founder")
+          target.searchParams.set("next", "founder");
+        return new Response(null, {
+          status: 302,
+          headers: { Location: target.href, "Cache-Control": "no-store" },
+        });
+      }
+      if (url.pathname === "/founder" && session && !isFounder(session.user))
+        return new Response("Halaman ini khusus founder.", {
+          status: 403,
+          headers: { "Cache-Control": "no-store" },
+        });
+    }
     const res = await env.ASSETS.fetch(request);
     const headers = new Headers(res.headers);
+    if (["/", "/index.html", "/login", "/founder"].includes(url.pathname))
+      headers.set("Cache-Control", "no-store");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     headers.set(
@@ -185,6 +207,13 @@ export class Room extends DurableObject<Env> {
       meeting: false,
       host: this.sockets().length === 0,
     };
+    const userId = request.headers.get("X-User-Id");
+    if (userId)
+      await this.env.AUTH.get(this.env.AUTH.idFromName("identity")).joined(
+        userId,
+        u.pathname.split("/")[3],
+        person.id,
+      );
     if (person.host) {
       this.locked = false;
       this.locks = {};
@@ -354,6 +383,10 @@ export class Room extends DurableObject<Env> {
           );
           return;
         }
+        if (a.userId && m.join === true && !a.person.meeting)
+          await this.env.AUTH.get(
+            this.env.AUTH.idFromName("identity"),
+          ).meeting();
         a.person.meeting = m.join === true;
         break;
       case "lock":

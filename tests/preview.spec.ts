@@ -1,49 +1,25 @@
 import { test, expect } from "@playwright/test";
-test("static preview keeps media and networking disabled while allowing avatar customization", async ({
+test("static preview has a login gateway without starting multiplayer or downloading the 3D scene", async ({
   page,
 }) => {
-  test.skip(
-    process.env.STATIC_PREVIEW !== "1",
-    "Only run against a preview-mode build.",
-  );
-  await page.addInitScript(() =>
-    localStorage.setItem("hallstatt-quality", "low"),
-  );
+  test.skip(process.env.STATIC_PREVIEW !== "1", "Preview build required");
   const sockets: string[] = [];
+  const requests: string[] = [];
   page.on("websocket", (s) => sockets.push(s.url()));
-  await page.goto("/");
+  page.on("request", (r) => requests.push(r.url()));
+  await page.goto("/?room=team-preview");
   await expect(
-    page.getByText("Exploration preview", { exact: true }),
+    page.getByRole("heading", { name: "Selamat datang." }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Unmute microphone" }),
-  ).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Turn camera on" }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Customize avatar" }).click();
-  await page.getByLabel("What should we call you?").fill("Tari");
-  await page.getByRole("button", { name: "Cewek", exact: true }).click();
-  await page.getByRole("button", { name: "Save and explore" }).click();
-  await expect(page.locator(".profile")).toContainText("Tari");
-  await expect(page.getByRole("status")).toContainText(
-    "This preview lets you explore on your own.",
+    page.getByRole("link", { name: "Sign in with Google" }),
+  ).toHaveAttribute(
+    "href",
+    "https://hallstatt-social.elviskudo.workers.dev/api/auth/google?room=team-preview",
   );
-  await page.getByRole("button", { name: "Dismiss notification" }).click();
-  await page.reload();
-  await expect(page.locator(".profile .avatar-portrait")).toHaveAttribute(
-    "aria-label",
-    "Cewek avatar",
-  );
-  await page.getByRole("button", { name: "Customize avatar" }).click();
-  await expect(
-    page.getByRole("button", { name: "Cewek", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.screenshot({
-    path: "docs/preview.png",
-    fullPage: true,
-    animations: "disabled",
-  });
+  await expect(page.locator("canvas")).toHaveCount(0);
   expect(sockets).toEqual([]);
+  expect(requests.some((r) => r.includes("/api/") || /\/three-/.test(r))).toBe(
+    false,
+  );
 });

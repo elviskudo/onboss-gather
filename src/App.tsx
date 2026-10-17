@@ -47,6 +47,7 @@ import {
 import { World, type WorldHandle } from "./World";
 import { AvatarPortrait } from "./AvatarPortrait";
 import { GoogleSignIn } from "./GoogleSignIn";
+import type { SessionInfo } from "./session";
 import {
   SPACES,
   AVATARS,
@@ -132,7 +133,13 @@ function RemoteAudio({
   }, [volume]);
   return <audio ref={ref} autoPlay />;
 }
-export default function App() {
+export default function App({
+  initialSession,
+  onSignedOut,
+}: {
+  initialSession?: SessionInfo;
+  onSignedOut?: () => void;
+}) {
   const [signedOut, setSignedOut] = useState(false),
     [signingOut, setSigningOut] = useState(false),
     [toast, setToast] = useState(""),
@@ -147,19 +154,7 @@ export default function App() {
     [profileId, setProfileId] = useState<string | null>(null),
     [draftAvatar, setDraftAvatar] = useState<AvatarId>(avatar),
     [draftBio, setDraftBio] = useState(bio),
-    [auth, setAuth] = useState<{
-      required: boolean;
-      configured: boolean;
-      user: {
-        name: string;
-        profile?: {
-          name: string;
-          color: string;
-          avatar: AvatarId;
-          bio: string;
-        };
-      } | null;
-    } | null>(null),
+    [auth, setAuth] = useState<SessionInfo | null>(initialSession || null),
     [panel, setPanel] = useState<"places" | "people" | "chat">("places"),
     [modal, setModal] = useState<
       "join" | "invite" | "settings" | "help" | "meeting" | "profile" | null
@@ -441,7 +436,8 @@ export default function App() {
       setToast("");
       position.current = { x: 3.5, z: 9 };
       setPos(position.current);
-      setSignedOut(true);
+      if (onSignedOut) onSignedOut();
+      else setSignedOut(true);
     } catch {
       notify("Gagal sign out. Sesi akun belum diakhiri. Silakan coba lagi.");
     } finally {
@@ -779,8 +775,10 @@ export default function App() {
                 Retry
               </button>
             )}
-            {(STATIC_PREVIEW || (auth?.configured && !auth.user)) && (
-              <GoogleSignIn room={roomId} preview={STATIC_PREVIEW} />
+            {auth?.user?.founder && (
+              <a className="founder-entry" href="/founder">
+                <ShieldCheck size={16} /> <span>Founder dashboard</span>
+              </a>
             )}
             {(STATIC_PREVIEW || auth?.user) && (
               <button

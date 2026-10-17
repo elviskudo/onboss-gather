@@ -94,16 +94,18 @@ test("profiles synchronize, six presets save, and meetings stay inside their bui
     await b.close();
   }
 });
-test("Google routes fail safely before OAuth configuration", async ({
+test("Google routes respect OAuth configuration and reject invalid callbacks", async ({
   request,
 }) => {
   const session = await request.get("/api/auth/session");
-  expect(await session.json()).toMatchObject({
-    required: false,
-    configured: false,
-    user: null,
-  });
-  expect((await request.get("/api/auth/google")).status()).toBe(503);
+  const info = await session.json();
+  expect(info).toMatchObject({ required: false, user: null });
+  const login = await request.get("/api/auth/google", { maxRedirects: 0 });
+  expect(login.status()).toBe(info.configured ? 302 : 503);
+  if (info.configured)
+    expect(new URL(login.headers().location).origin).toBe(
+      "https://accounts.google.com",
+    );
   expect(
     (await request.get("/api/auth/callback?state=forged&code=forged")).status(),
   ).toBe(400);

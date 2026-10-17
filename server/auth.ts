@@ -9,6 +9,7 @@ export interface AuthEnv {
 type User = {
   id: string;
   name: string;
+  email?: string;
   profile?: { name: string; color: string; avatar: string; bio: string };
 };
 type Session = { user: User; expires: number };
@@ -43,13 +44,17 @@ const noStore = {
   "Referrer-Policy": "no-referrer",
 };
 const store = (env: AuthEnv) => env.AUTH.get(env.AUTH.idFromName("identity"));
+export const isFounder = (user: User) =>
+  user.email?.toLowerCase() === "elviskudo@gmail.com";
 export const authRequired = (r: Request, env: AuthEnv) =>
   env.AUTH_REQUIRED === "true" ||
   !["localhost", "127.0.0.1", "[::1]"].includes(new URL(r.url).hostname);
 export const sessionKey = (r: Request) => hash(cookie(r, "hallstatt_session"));
 export async function getSession(r: Request, env: AuthEnv) {
   const token = cookie(r, "hallstatt_session");
-  return token ? store(env).session(await hash(token)) : null;
+  const session = token ? await store(env).session(await hash(token)) : null;
+  // Older sessions predate verified email storage; require Google again to establish ownership.
+  return session?.user.email ? session : null;
 }
 const jwks = createRemoteJWKSet(
   new URL("https://www.googleapis.com/oauth2/v3/certs"),
@@ -61,13 +66,73 @@ export async function handleAuth(
   const url = new URL(request.url),
     secure = url.protocol === "https:",
     configured = !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+  if (url.pathname === "/api/visits") {
+    if (
+      request.method !== "POST" ||
+      request.headers.get("Origin") !== url.origin
+    )
+      return Response.json(
+        { error: "Origin rejected" },
+        { status: 403, headers: noStore },
+      );
+    const previous = cookie(request, "hallstatt_visitor");
+    const visitor = /^[a-f0-9]{64}$/.test(previous) ? previous : random();
+    await store(env).visit(await hash(visitor));
+    return Response.json(
+      { ok: true },
+      {
+        headers: {
+          ...noStore,
+          "Set-Cookie": cookieHeader(
+            "hallstatt_visitor",
+            visitor,
+            31536000,
+            secure,
+          ),
+        },
+      },
+    );
+  }
+  if (url.pathname === "/api/founder/summary") {
+    const session = await getSession(request, env);
+    if (!session)
+      return Response.json(
+        { error: "Login required" },
+        { status: 401, headers: noStore },
+      );
+    if (!isFounder(session.user))
+      return Response.json(
+        { error: "Founder access required" },
+        { status: 403, headers: noStore },
+      );
+    if (request.method !== "GET")
+      return Response.json(
+        { error: "Method not allowed" },
+        { status: 405, headers: noStore },
+      );
+    const page = (key: string) =>
+      Math.min(
+        1000000,
+        Math.max(0, Number.parseInt(url.searchParams.get(key) || "0", 10) || 0),
+      );
+    return Response.json(
+      await store(env).summary(page("usersPage"), page("joinsPage")),
+      { headers: noStore },
+    );
+  }
   if (url.pathname === "/api/auth/session") {
     const s = await getSession(request, env);
     return Response.json(
       {
         required: authRequired(request, env),
         configured,
-        user: s ? { name: s.user.name, profile: s.user.profile } : null,
+        user: s
+          ? {
+              name: s.user.name,
+              profile: s.user.profile,
+              founder: isFounder(s.user),
+            }
+          : null,
       },
       { headers: noStore },
     );
@@ -189,7 +254,8 @@ export async function handleAuth(
       if (
         payload.nonce !== flow.nonce ||
         !payload.sub ||
-        payload.email_verified !== true
+        payload.email_verified !== true ||
+        typeof payload.email !== "string"
       )
         throw new Error("invalid identity");
       const user = await store(env).user(
@@ -197,6 +263,7 @@ export async function handleAuth(
         typeof payload.name === "string"
           ? payload.name.slice(0, 28)
           : "Villager",
+        payload.email as string,
       );
       const session = random();
       await store(env).createSession(await hash(session), {
@@ -227,6 +294,136 @@ export async function handleAuth(
 }
 /** Identity is persistent; only random token hashes and basic profiles are stored. */
 export class AuthStore extends DurableObject {
+  constructor(ctx: DurableObjectState, env: AuthEnv) {
+    super(ctx, env);
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS analytics_visitors (id TEXT PRIMARY KEY, last_visit INTEGER NOT NULL)`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS analytics_users (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, created_at INTEGER NOT NULL, last_login INTEGER NOT NULL, logins INTEGER NOT NULL DEFAULT 1)`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS analytics_joins (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, room TEXT NOT NULL, joined_at INTEGER NOT NULL)`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE INDEX IF NOT EXISTS analytics_joins_user ON analytics_joins(user_id, joined_at)`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE INDEX IF NOT EXISTS analytics_joins_time ON analytics_joins(joined_at)`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS analytics_days (day TEXT PRIMARY KEY, visits INTEGER NOT NULL DEFAULT 0, registrations INTEGER NOT NULL DEFAULT 0, joins INTEGER NOT NULL DEFAULT 0, meetings INTEGER NOT NULL DEFAULT 0)`,
+    );
+    ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS analytics_meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL)`,
+    );
+    ctx.storage.sql.exec(
+      `INSERT OR IGNORE INTO analytics_meta VALUES ('since', ?)`,
+      Date.now(),
+    );
+  }
+  day() {
+    return new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
+  }
+  increment(metric: "visits" | "registrations" | "joins" | "meetings") {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO analytics_days (day, ${metric}) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET ${metric} = ${metric} + 1`,
+      this.day(),
+    );
+  }
+  async visit(id: string) {
+    this.ctx.storage.transactionSync(() => {
+      const previous = this.ctx.storage.sql
+        .exec<{ last_visit: number }>(
+          "SELECT last_visit FROM analytics_visitors WHERE id = ?",
+          id,
+        )
+        .toArray()[0];
+      if (!previous || Date.now() - previous.last_visit >= 1800000)
+        this.increment("visits");
+      this.ctx.storage.sql.exec(
+        "INSERT INTO analytics_visitors VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET last_visit = excluded.last_visit",
+        id,
+        Date.now(),
+      );
+    });
+  }
+  async joined(userId: string, room: string, id: string) {
+    this.ctx.storage.transactionSync(() => {
+      const inserted = this.ctx.storage.sql.exec(
+        "INSERT OR IGNORE INTO analytics_joins VALUES (?, ?, ?, ?)",
+        id,
+        userId,
+        room,
+        Date.now(),
+      );
+      if (inserted.rowsWritten) this.increment("joins");
+    });
+  }
+  async meeting() {
+    this.increment("meetings");
+  }
+  async summary(usersPage = 0, joinsPage = 0) {
+    const sql = this.ctx.storage.sql;
+    const count = (query: string) => sql.exec<{ n: number }>(query).one().n;
+    const totals = sql
+      .exec<{ visits: number; meetings: number }>(
+        "SELECT COALESCE(SUM(visits),0) visits, COALESCE(SUM(meetings),0) meetings FROM analytics_days",
+      )
+      .one();
+    const since = sql
+      .exec<{ value: number }>(
+        "SELECT value FROM analytics_meta WHERE key='since'",
+      )
+      .one().value;
+    const users = sql
+      .exec(
+        "SELECT u.*, (SELECT COUNT(*) FROM analytics_joins j WHERE j.user_id=u.id) joins, (SELECT MAX(joined_at) FROM analytics_joins j WHERE j.user_id=u.id) last_join FROM analytics_users u ORDER BY created_at DESC, id LIMIT 25 OFFSET ?",
+        usersPage * 25,
+      )
+      .toArray();
+    const joins = sql
+      .exec(
+        "SELECT j.*, u.name, u.email FROM analytics_joins j LEFT JOIN analytics_users u ON u.id=j.user_id ORDER BY joined_at DESC, j.id LIMIT 25 OFFSET ?",
+        joinsPage * 25,
+      )
+      .toArray();
+    return {
+      since,
+      generatedAt: Date.now(),
+      totals: {
+        ...totals,
+        visitors: count("SELECT COUNT(*) n FROM analytics_visitors"),
+        users: count("SELECT COUNT(*) n FROM analytics_users"),
+        joins: count("SELECT COUNT(*) n FROM analytics_joins"),
+        joinedUsers: count(
+          "SELECT COUNT(DISTINCT user_id) n FROM analytics_joins",
+        ),
+      },
+      today: sql
+        .exec("SELECT * FROM analytics_days WHERE day=?", this.day())
+        .toArray()[0] || {
+        day: this.day(),
+        visits: 0,
+        registrations: 0,
+        joins: 0,
+        meetings: 0,
+      },
+      days: sql
+        .exec(
+          "SELECT * FROM analytics_days WHERE day>=? ORDER BY day",
+          new Date(Date.now() + 7 * 3600000 - 6 * 86400000)
+            .toISOString()
+            .slice(0, 10),
+        )
+        .toArray(),
+      users,
+      joins,
+      usersPage,
+      joinsPage,
+      pageSize: 25,
+    };
+  }
   async begin(key: string, flow: Flow) {
     await this.ctx.storage.put("flow:" + key, flow);
     await this.schedule();
@@ -238,12 +435,25 @@ export class AuthStore extends DurableObject {
       return v && v.expires > Date.now() ? v : null;
     });
   }
-  async user(sub: string, name: string) {
+  async user(sub: string, name: string, email: string) {
     const id = "google:" + sub;
     const existing = await this.ctx.storage.get<User>("user:" + id);
-    if (existing) return existing;
-    const u = { id, name };
+    const u = { ...(existing || { id, name }), email: email.toLowerCase() };
     await this.ctx.storage.put("user:" + id, u);
+    this.ctx.storage.transactionSync(() => {
+      const exists = this.ctx.storage.sql
+        .exec("SELECT id FROM analytics_users WHERE id=?", id)
+        .toArray().length;
+      this.ctx.storage.sql.exec(
+        "INSERT INTO analytics_users (id, name, email, created_at, last_login) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET email=excluded.email, name=excluded.name, last_login=excluded.last_login, logins=logins+1",
+        id,
+        u.name,
+        u.email,
+        Date.now(),
+        Date.now(),
+      );
+      if (!exists) this.increment("registrations");
+    });
     return u;
   }
   async createSession(key: string, s: Session) {
@@ -267,6 +477,11 @@ export class AuthStore extends DurableObject {
         name: profile.name,
         profile,
       });
+    this.ctx.storage.sql.exec(
+      "UPDATE analytics_users SET name=? WHERE id=?",
+      profile.name,
+      userId,
+    );
   }
   async schedule() {
     if (!(await this.ctx.storage.getAlarm()))

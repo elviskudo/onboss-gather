@@ -95,3 +95,7 @@ Preview Sites bersifat privat dan hanya eksplorasi statis; frontend preview tida
 - `docs/`: bukti visual dan hasil verifikasi.
 
 Semua geometri desa dibuat sendiri. Font DM Sans dan Manrope didistribusikan melalui Fontsource dengan lisensi OFL; lihat `node_modules/@fontsource/*/LICENSE`. Ikon Lucide berlisensi ISC. Tidak ada aset, nama produk, atau logo Gather.town yang digunakan.
+
+### Login and founder dashboard
+
+The live Worker sends anonymous visitors to `/login` before loading the village. First Google sign-in registers the account. `/founder` is restricted server-side to the verified Google email `elviskudo@gmail.com`. Its persisted counters distinguish browser visits, unique browsers, registered users, joined users, room connections and meeting participations; historical counts start at feature activation. Account and join-history lists use 25-row pagination. See `docs/cloudflare-google-setup.md` for definitions. `npm run test:founder` runs an isolated local test Worker; its session-seeding endpoint is never deployed in production.

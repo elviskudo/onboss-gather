@@ -43,7 +43,7 @@ Konfigurasi lokal opsional menggunakan `.dev.vars` yang diabaikan Git. Set `AUTH
 
 ## 4. Verifikasi deployment
 
-Buka domain Worker → Enter village → Sign in with Google → pilih akun → masuk desa. Buka browser/profil kedua dengan akun Google lain dan room undangan yang sama. Pastikan:
+Buka domain Worker → halaman /login → Sign in with Google → pilih akun → masuk desa. Login Google pertama otomatis mendaftarkan akun. Buka browser/profil kedua dengan akun Google lain dan room undangan yang sama. Pastikan:
 
 - Kedua peserta muncul dan bergerak secara realtime; perubahan profil terlihat di browser lain.
 - Pilihan avatar dan warna tersimpan; setelah login kembali, profil dipulihkan.
@@ -60,3 +60,15 @@ Voice/video saat ini native WebRTC P2P dengan maksimum tiga video remote per pen
 Referensi: [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect), [Cloudflare Wrangler](https://developers.cloudflare.com/workers/wrangler/commands/general/), [Cloudflare secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
 
 Tombol **Sign in with Google** tersedia di header dan dialog masuk. Preview Sites mengarah ke OAuth di domain Worker melalui navigasi penuh agar cookie sesi tetap di domain aplikasi lengkap. Jangan memakai callback domain preview Sites untuk OAuth Worker.
+
+## Halaman login dan dashboard founder
+
+Pengunjung belum login diarahkan ke `/login` sebelum index/3D dimuat. Room undangan diteruskan melalui login. Setelah Google memverifikasi identitas, akun didaftarkan dan diarahkan ke index desa. Sign out kembali ke halaman login.
+
+Dashboard `/founder` dan API `/api/founder/summary` hanya dapat diakses akun Google terverifikasi `elviskudo@gmail.com`. Flag founder berasal dari email hasil verifikasi token Google di server, bukan dari nama profil, localStorage, parameter URL atau header browser. Sesi lama yang belum menyimpan email terverifikasi perlu login ulang sekali.
+
+Statistik tersimpan di SQLite dalam AuthStore yang sudah ada: jumlah sesi kunjungan (jeda 30 menit), browser unik berdasarkan cookie acak HttpOnly, akun terdaftar, akun unik yang pernah bergabung, total koneksi ruang yang diterima, dan partisipasi meeting. Nama, email, waktu login serta riwayat masuk ruang hanya dikembalikan melalui API founder. Tidak menyimpan alamat IP atau identitas pengunjung anonim. Reconnect dihitung sebagai koneksi baru; partisipasi meeting bukan jumlah meeting unik. Ringkasan harian menggunakan WIB dan daftar pengguna/riwayat memakai halaman 25 baris.
+
+Pencatatan dimulai saat fitur diterbitkan, tanpa mengarang data historis. Akun lama tercatat saat login ulang. Pengunjung yang menghapus cookie atau memakai browser lain dapat dihitung sebagai browser unik baru. Preview Sites sekarang menjadi halaman login yang menuju aplikasi lengkap Cloudflare.
+
+Jalankan `npm run test:founder` untuk uji integrasi dengan entrypoint fixture lokal terisolasi. Fixture `/__test/login` hanya ada dalam `tests/fixtures/founder-worker.ts`; tidak dipakai konfigurasi atau bundle produksi.
