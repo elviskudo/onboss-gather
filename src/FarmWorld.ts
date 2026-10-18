@@ -1,7 +1,8 @@
 import * as T from "three";
+import { createFarmBuilding } from "./FarmBuildings";
 import { createFarmAnimals } from "./FarmAnimals";
 import { FARM_BUILDINGS, FARM_TREES } from "../shared/farm";
-/** Space 2 uses the actual supplied sprite atlas, normalized into individual alpha PNGs. */
+/** Mesh architecture and animals, with the supplied atlas retained for vegetation and terrain. */
 export function createFarmWorld() {
   const group = new T.Group();
   group.name = "space-2-farm";
@@ -126,8 +127,7 @@ export function createFarmWorld() {
   }
   for (const b of FARM_BUILDINGS) {
     shadow(b.x, b.z, b.halfX + 1, b.halfZ + 1);
-    const building = sprite(b.asset, b.x, b.z, b.width, b.height);
-    if ("area" in b) building.userData.area = b.area;
+    group.add(createFarmBuilding(b));
   }
   for (const [i, [x, z]] of FARM_TREES.entries()) {
     sprite(

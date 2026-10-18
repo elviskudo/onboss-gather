@@ -27,6 +27,7 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 
 - Delapan avatar manusia tanpa fitur wajah: cowok, perempuan berhijab, anak, remaja, dewasa berjenggot hitam, orang tua berjenggot putih, cadar, dan anak berhijab. Profil dapat diklik, tersedia 24 warna baju, dan kamera mengikuti avatar.
 - Space 2 memiliki 21 NPC hewan 3D (sapi, domba, kucing, ayam, bebek) yang berjalan, makan, dan menerima pakan bersama melalui klik atau F. Anjing dihapus; avatar, tanaman, properti dan kamera farm memakai skala yang konsisten.
+- Enam bangunan Harvest Farm memakai mesh 3D proporsional: cottage, barn, greenhouse, workshop, kandang ayam, dan sumur; empat rumah tetap dapat dimasuki untuk meeting/papan tulis.
 - Pemilih Space 1 (Hallstatt) dan Space 2 (Harvest Farm). Space 2 memakai aset atlas unggahan pengguna; peserta, chat, meeting, dan papan tulis terpisah per room/space. Tautan undangan membawa room dan space melewati login Google.
 - Satu kehadiran per akun dalam room/space: koneksi baru menggantikan koneksi lama dengan ID avatar tetap. Tab lama berhenti reconnect otomatis; tombol Retry memindahkan koneksi kembali. Presence idle dibersihkan lewat lease/heartbeat.
 - Papan tulis tiap rumah mendukung pena, penghapus per coretan, hapus catatan, dan pembersihan seluruh papan oleh host atau founder dengan konfirmasi.

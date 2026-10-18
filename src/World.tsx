@@ -1017,7 +1017,10 @@ export function World({
         }
         const doorway = ray.intersectObjects(doors, true)[0];
         if (doorway) {
-          live.current.onEnter(doorway.object.userData.area);
+          let entrance: T.Object3D | null = doorway.object;
+          while (entrance && !entrance.userData.area)
+            entrance = entrance.parent;
+          if (entrance) live.current.onEnter(entrance.userData.area);
           pointer.down = false;
           return;
         }
