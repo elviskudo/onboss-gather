@@ -1,3 +1,4 @@
+import { FarmHud } from "./FarmHud";
 import { canHear, videoSubscriptions } from "./mediaPolicy";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -149,6 +150,7 @@ export default function App({
   const [signedOut, setSignedOut] = useState(false),
     [signingOut, setSigningOut] = useState(false),
     [toast, setToast] = useState(""),
+    [selectedAnimal, setSelectedAnimal] = useState<string | null>(null),
     [socialOpen, setSocialOpen] = useState(false),
     [socialTarget, setSocialTarget] = useState<string | null>(null),
     [activityArea, setActivityArea] = useState<AreaId>("workspace"),
@@ -949,6 +951,23 @@ export default function App({
                 ? "Masuk rumah"
                 : SPACES.find((s) => s.id === area)?.name}
             </strong>
+            {space === "space-2" && area === "village" && (
+              <select
+                className="farm-house-select"
+                aria-label="Masuk rumah di kebun"
+                value=""
+                onChange={(e) => enterSpace(e.target.value)}
+              >
+                <option value="" disabled>
+                  Pilih bangunan…
+                </option>
+                {SPACES.map((sp) => (
+                  <option key={sp.id} value={sp.id}>
+                    {sp.name}
+                  </option>
+                ))}
+              </select>
+            )}
             {area === "village" ? (
               SPACES.map((sp) => (
                 <button
@@ -978,6 +997,9 @@ export default function App({
           </div>
           <World
             space={space}
+            farmFeeds={room.farmFeeds}
+            farmClockOffset={room.farmClockOffset}
+            onAnimal={setSelectedAnimal}
             board={room.board?.area === area ? room.board : null}
             onBoard={() => setBoardOpen(true)}
             people={room.people}
@@ -990,6 +1012,18 @@ export default function App({
             onError={() => setWorldError(true)}
             handle={world}
           />
+          {space === "space-2" && area === "village" && ready && (
+            <FarmHud
+              feeds={room.farmFeeds}
+              offset={room.farmClockOffset}
+              self={pos}
+              selected={selectedAnimal}
+              onSelect={setSelectedAnimal}
+              onFeed={(id) => room.send({ type: "animal-feed", id })}
+              onWalk={(x, z) => world.current?.walkTo(x, z)}
+              enabled={connected && !modal && !boardOpen && !socialOpen}
+            />
+          )}
           {!ready && !worldError && (
             <div className="world-loading">
               <Mountain size={36} />

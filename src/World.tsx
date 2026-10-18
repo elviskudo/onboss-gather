@@ -1,5 +1,5 @@
 import { createFarmWorld } from "./FarmWorld";
-import { FARM_BUILDINGS } from "../shared/farm";
+import type { FarmFeeds } from "../shared/animals";
 import type { SpaceId } from "../shared/space";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import {
@@ -17,12 +17,16 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { Person } from "./types";
 export type WorldHandle = {
   go: (x: number, z: number) => void;
+  walkTo: (x: number, z: number) => void;
   zoom: (n: number) => void;
   rotate: () => void;
   home: () => void;
 };
 type Props = {
   space?: SpaceId;
+  farmFeeds?: FarmFeeds;
+  farmClockOffset?: number;
+  onAnimal?: (id: string) => void;
   board: Board | null;
   onBoard: () => void;
   people: Person[];
@@ -38,6 +42,9 @@ type Props = {
 
 export function World({
   space = "space-1",
+  farmFeeds = {},
+  farmClockOffset = 0,
+  onAnimal,
   board,
   onBoard,
   people,
@@ -59,8 +66,22 @@ export function World({
     onEnter,
     board,
     onBoard,
+    farmFeeds,
+    farmClockOffset,
+    onAnimal,
   });
-  live.current = { people, self, onMove, onPerson, onEnter, board, onBoard };
+  live.current = {
+    people,
+    self,
+    onMove,
+    onPerson,
+    onEnter,
+    board,
+    onBoard,
+    farmFeeds,
+    farmClockOffset,
+    onAnimal,
+  };
   useEffect(() => {
     const el = container.current!;
     let disposed = false;
@@ -158,7 +179,7 @@ export function World({
     scene.fog = new T.Fog("#c8e2df", 110, 240);
     const camera = new T.PerspectiveCamera(36, 1, 0.1, 350);
     let angle = -0.45,
-      zoom = space === "space-2" ? 40 : 24;
+      zoom = space === "space-2" ? 34 : 24;
     const center = new T.Vector3(self.x, 0, self.z);
     const desiredCenter = new T.Vector3(self.x, 0, self.z);
     const ambient = new T.HemisphereLight("#d5edff", "#819a52", 1.65);
@@ -856,9 +877,13 @@ export function World({
     interior.visible = false;
     const avatarMap = new Map<string, T.Group>();
     function avatar(p: Person) {
-      const g = createHuman(p, mat, quality === "low");
+      const g = createHuman(p, mat, quality === "low", space === "space-2");
       const ring = mesh(
-        new T.RingGeometry(0.6, 0.69, 32),
+        new T.RingGeometry(
+          space === "space-2" ? 0.44 : 0.6,
+          space === "space-2" ? 0.51 : 0.69,
+          32,
+        ),
         new T.MeshBasicMaterial({
           color: p.id === live.current.self.id ? "#f8e2a0" : "#e9eee0",
           side: T.DoubleSide,
@@ -975,6 +1000,21 @@ export function World({
             return;
           }
         }
+        if (farm && farm.group.visible) {
+          const hit = ray.intersectObjects(
+            farm.animals.models.map((a) => a.root),
+            true,
+          )[0];
+          if (hit) {
+            let o: T.Object3D | null = hit.object;
+            while (o && !o.userData.animalId) o = o.parent;
+            if (o) {
+              live.current.onAnimal?.(o.userData.animalId);
+              pointer.down = false;
+              return;
+            }
+          }
+        }
         const doorway = ray.intersectObjects(doors, true)[0];
         if (doorway) {
           live.current.onEnter(doorway.object.userData.area);
@@ -998,6 +1038,9 @@ export function World({
     window.addEventListener("pointerup", pu);
     el.addEventListener("wheel", wheel, { passive: false });
     handle.current = {
+      walkTo(x, z) {
+        target = new T.Vector2(x, z);
+      },
       go(x, z) {
         px = x;
         pz = z;
@@ -1013,7 +1056,7 @@ export function World({
       },
       home() {
         angle = -0.45;
-        zoom = space === "space-2" ? 40 : 24;
+        zoom = space === "space-2" ? 34 : 24;
         desiredCenter.set(px, 0, pz);
       },
     };
@@ -1033,7 +1076,14 @@ export function World({
       }
       const outdoors = (live.current.self.area || "village") === "village";
       for (const o of exterior) o.visible = outdoors && space === "space-1";
-      if (farm) farm.group.visible = outdoors;
+      if (farm) {
+        farm.group.visible = outdoors;
+        if (outdoors)
+          farm.animals.update(
+            Date.now() + live.current.farmClockOffset,
+            live.current.farmFeeds,
+          );
+      }
       interior.visible = !outdoors;
       if (outdoors && space === "space-1") {
         for (let i = 0; i < 72; i++) {
@@ -1201,7 +1251,8 @@ export function World({
       const projected = new T.Vector3();
       for (const g of avatarMap.values()) {
         projected.copy(g.position);
-        projected.y = 3.4;
+        projected.y =
+          space === "space-2" ? 0.85 + 2.6 * (g.userData.scale || 1) : 3.4;
         projected.project(camera);
         const label = g.userData.label as HTMLButtonElement;
         label.hidden =

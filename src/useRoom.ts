@@ -1,3 +1,4 @@
+import type { FarmFeeds } from "../shared/animals";
 import type { SpaceId } from "../shared/space";
 import type { AreaId } from "../shared/spaces";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,6 +13,8 @@ const PING_INTERVAL = 12_000;
 const PONG_TIMEOUT = 8_000;
 
 export function useRoom(onNotice: (s: string) => void) {
+  const [farmFeeds, setFarmFeeds] = useState<FarmFeeds>({});
+  const [farmClockOffset, setFarmClockOffset] = useState(0);
   const [board, setBoard] = useState<Board | null>(null);
   const [invitation, setInvitation] = useState<ActivityInvite | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -189,6 +192,8 @@ export function useRoom(onNotice: (s: string) => void) {
           connectedBefore.current = true;
           live.current = true;
           setId(m.id);
+          setFarmFeeds(m.farm?.feeds || {});
+          setFarmClockOffset(m.farm ? m.farm.now - Date.now() : 0);
           setMessages(m.history);
           setSpawn((previous) => ({
             x: Number.isFinite(m.self?.x) ? m.self.x : 3.5,
@@ -205,6 +210,10 @@ export function useRoom(onNotice: (s: string) => void) {
           return;
         }
         if (!live.current) return;
+        if (m.type === "farm" && m.feeds && Number.isFinite(m.now)) {
+          setFarmFeeds(m.feeds);
+          setFarmClockOffset(m.now - Date.now());
+        }
         if (
           m.type === "board" &&
           m.board &&
@@ -288,6 +297,8 @@ export function useRoom(onNotice: (s: string) => void) {
     setPeople([]);
     setId("local");
     setMessages([]);
+    setFarmFeeds({});
+    setFarmClockOffset(0);
     setBoard(null);
     setInvitation(null);
     setLocked(false);
@@ -353,6 +364,8 @@ export function useRoom(onNotice: (s: string) => void) {
       Object.assign(identity.current, { name, color, avatar, bio });
   };
   return {
+    farmFeeds,
+    farmClockOffset,
     board,
     invitation,
     dismissInvitation: () => setInvitation(null),

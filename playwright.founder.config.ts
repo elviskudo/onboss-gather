@@ -8,6 +8,7 @@ export default defineConfig({
     "room-invite.spec.ts",
     "social.spec.ts",
     "revision.spec.ts",
+    "farm-npcs.spec.ts",
   ],
   use: { ...config.use, baseURL: "http://127.0.0.1:8789" },
   webServer: {

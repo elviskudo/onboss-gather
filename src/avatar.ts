@@ -7,13 +7,14 @@ export function createHuman(
   p: Person,
   material: (color: string) => T.Material,
   low = false,
+  farming = false,
 ) {
   const preset = AVATARS.find((a) => a.id === p.avatar) || AVATARS[0];
   const root = new T.Group(),
     body = new T.Group();
   root.add(body);
   body.position.y = 0.62;
-  body.scale.setScalar(preset.scale);
+  body.scale.setScalar(preset.scale * (farming ? 0.78 : 1));
   const skin = preset.skin,
     hair = preset.hair,
     female = ["woman", "niqab", "girl"].includes(preset.id),
@@ -65,7 +66,11 @@ export function createHuman(
   capsule(body, skin, 0, 1.89, 0, 0.09, 0.16);
   const head = new T.Group();
   head.position.set(0, 2.1, 0);
-  head.scale.set(1.24, 1.16, 1.24);
+  head.scale.set(
+    farming ? 1.52 : 1.24,
+    farming ? 1.4 : 1.16,
+    farming ? 1.52 : 1.24,
+  );
   body.add(head);
   if (female) {
     ellipsoid(head, p.color, 0, 0.02, -0.02, 0.29, 0.38, 0.27);
@@ -165,7 +170,8 @@ export function createHuman(
   for (const limb of limbs) batch(limb, knees);
   for (const knee of knees) batch(knee);
   root.userData.knees = knees;
-  root.userData.scale = preset.scale;
+  root.userData.scale = preset.scale * (farming ? 0.78 : 1);
+  root.userData.farming = farming;
   root.userData.limbs = limbs;
   root.userData.personId = p.id;
   return root;

@@ -1,4 +1,5 @@
 import * as T from "three";
+import { createFarmAnimals } from "./FarmAnimals";
 import { FARM_BUILDINGS, FARM_TREES } from "../shared/farm";
 /** Space 2 uses the actual supplied sprite atlas, normalized into individual alpha PNGs. */
 export function createFarmWorld() {
@@ -7,6 +8,7 @@ export function createFarmWorld() {
   const textures = new Map<string, Promise<T.Texture>>();
   const pending: Promise<unknown>[] = [];
   let disposed = false;
+  const groundMaps: T.Texture[] = [];
   function texture(name: string) {
     let promise = textures.get(name);
     if (!promise) {
@@ -29,6 +31,19 @@ export function createFarmWorld() {
       color: "#ffffff",
       roughness: 1,
     });
+    if (name === "grass") {
+      material.transparent = true;
+      material.opacity = 0.28;
+      material.depthWrite = false;
+      const base = new T.Mesh(
+        new T.PlaneGeometry(w, d),
+        new T.MeshStandardMaterial({ color: "#8fa964", roughness: 1 }),
+      );
+      base.rotation.x = -Math.PI / 2;
+      base.position.set(x, 0.58, z);
+      base.receiveShadow = true;
+      group.add(base);
+    }
     const plane = new T.Mesh(new T.PlaneGeometry(w, d), material);
     plane.rotation.x = -Math.PI / 2;
     plane.position.set(
@@ -48,8 +63,13 @@ export function createFarmWorld() {
       texture(name).then((t) => {
         const map = t.clone();
         map.needsUpdate = true;
+        groundMaps.push(map);
+        if (disposed) map.dispose();
         map.wrapS = map.wrapT = T.RepeatWrapping;
-        map.repeat.set(w / 2, d / 2);
+        map.repeat.set(
+          w / (name === "grass" ? 4 : 2),
+          d / (name === "grass" ? 4 : 2),
+        );
         material.map = map;
         material.needsUpdate = true;
       }),
@@ -82,6 +102,8 @@ export function createFarmWorld() {
     pending.push(
       texture(name).then((t) => {
         material.map = t;
+        const size = t.image as { width: number; height: number };
+        item.scale.y = width * (size.height / size.width);
         material.needsUpdate = true;
       }),
     );
@@ -112,8 +134,8 @@ export function createFarmWorld() {
       ["oak", "apple", "pine", "pink-tree", "autumn-tree"][i % 5],
       x,
       z,
-      4.2,
-      5.2,
+      5.4,
+      6.8,
     );
     shadow(x, z, 1.6, 0.8);
   }
@@ -124,8 +146,8 @@ export function createFarmWorld() {
         z === 8 ? "turnip" : z === 11 ? "carrot" : "pumpkin",
         x,
         z,
-        1.4,
-        1.7,
+        0.7,
+        0.8,
       );
     }
   for (const x of [6, 8.5, 11])
@@ -135,31 +157,31 @@ export function createFarmWorld() {
         z === 6 ? "tomato" : z === 8.5 ? "corn" : "sunflower",
         x,
         z,
-        1.3,
-        1.9,
+        0.7,
+        1.0,
       );
     }
-  for (let x = -9; x <= 12; x += 3) sprite("fence", x, -17, 3, 1.7);
+  for (let x = -9; x <= 12; x += 1.8) sprite("fence", x, -17, 1.8, 1.3);
   for (const [asset, x, z, w, h] of [
-    ["cow", 8, -1, 3, 2.4],
-    ["sheep", 12, -1, 2.1, 1.8],
-    ["chicken", 18, 2, 1.2, 1.4],
-    ["chick", 16, 2, 0.7, 0.8],
-    ["dog", 0, 12, 1.6, 1.4],
-    ["cat", -6, 3, 1.2, 1.4],
     ["horse", 18, -15, 2.8, 3.2],
-    ["mailbox", -7, -4, 1.4, 2],
-    ["crate", 13, 6, 1.5, 1.3],
-    ["gate", 1, -17, 4, 2],
-    ["stump", -22, 13, 2.1, 1.4],
+    ["mailbox", -7, -4, 0.65, 1.1],
+    ["crate", 13, 6, 0.7, 0.8],
+    ["gate", 1, -17, 2.4, 1.7],
+    ["stump", -22, 13, 1.3, 1.4],
   ] as const)
     sprite(asset, x, z, w, h);
-  for (let i = 0; i < 6; i++) sprite("flower", -2 + i * 1.1, 14, 1, 1.2);
+  for (let i = 0; i < 6; i++) sprite("flower", -2 + i * 1.1, 14, 0.4, 0.5);
+  const animals = createFarmAnimals();
+  group.add(animals.group);
   return {
     group,
+    animals,
     ready: Promise.all(pending),
     dispose: () => {
       disposed = true;
+      animals.dispose();
+      animals.group.removeFromParent();
+      groundMaps.forEach((t) => t.dispose());
       for (const p of textures.values()) void p.then((t) => t.dispose());
     },
   };

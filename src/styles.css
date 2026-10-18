@@ -2543,3 +2543,205 @@ kbd {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+/* A compact farm HUD leaves the living world and its residents in view. */
+.scene-shell[data-space="space-2"] .scene-heading {
+  top: 24px;
+  max-width: 320px;
+}
+.scene-shell[data-space="space-2"] .scene-heading h1 {
+  font-size: 28px;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin: 7px 0;
+}
+.scene-shell[data-space="space-2"] .scene-heading p {
+  font-size: 11px;
+  max-width: 270px;
+  line-height: 1.5;
+}
+.scene-shell[data-space="space-2"] .weather-pill {
+  display: none;
+}
+.scene-shell[data-space="space-2"] .space-switcher {
+  top: 24px;
+  width: 175px;
+  right: 20px;
+}
+.farm-hud {
+  position: absolute;
+  z-index: 4;
+  left: 22px;
+  bottom: 28px;
+  width: 295px;
+  color: #36523b;
+}
+.farm-herd-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 14px;
+  border: 1px solid #d7dfc6;
+  border-radius: 12px;
+  background: #fffdf3ed;
+  box-shadow: 0 4px 18px #34482d12;
+  font-weight: 700;
+  font-size: 12px;
+  width: 100%;
+}
+.farm-herd-toggle span {
+  font-size: 10px;
+  color: #79886a;
+  font-weight: 400;
+}
+.farm-hud-hint {
+  font-size: 10px;
+  padding: 9px 12px;
+  background: #fffdf3df;
+  border-radius: 10px;
+  margin: 6px 0 0;
+  line-height: 1.6;
+}
+.farm-hud kbd {
+  font-family: inherit;
+  background: #e8ecd9;
+  border: 1px solid #d7dfc6;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 10px;
+}
+.farm-animal-card {
+  padding: 14px;
+  background: #fffdf4f5;
+  border: 1px solid #d7dfc6;
+  border-radius: 13px;
+  margin-top: 8px;
+  box-shadow: 0 6px 20px #30432c12;
+}
+.farm-animal-card > div:first-child {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.farm-animal-card > div:first-child > button {
+  margin-left: auto;
+  font-size: 20px;
+  color: #89957c;
+  line-height: 1;
+}
+.farm-animal-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #83a25f;
+}
+.farm-animal-card strong {
+  font-size: 15px;
+}
+.farm-animal-card small {
+  font-size: 10px;
+  color: #7c896e;
+  line-height: 1.5;
+}
+.farm-animal-card p {
+  font-size: 11px;
+  margin: 7px 0 11px;
+}
+.farm-animal-actions {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 9px;
+}
+.farm-animal-actions button {
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid #d6dfc4;
+  font-size: 11px;
+  flex: 1;
+}
+.farm-animal-actions .feed-animal {
+  background: #3d654a;
+  color: #fffdf3;
+  border: 0;
+}
+.farm-animal-actions button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+.farm-herd-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fffdf4f7;
+  padding: 9px;
+  border: 1px solid #d7dfc6;
+  border-radius: 12px;
+  margin-top: 8px;
+}
+.farm-herd-list button {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 3px;
+  background: #f0f2e6;
+  border-radius: 7px;
+  padding: 8px;
+  font-size: 12px;
+}
+.farm-herd-list small {
+  font-size: 9px;
+  color: #7c896e;
+}
+@media (max-width: 768px) {
+  .scene-shell[data-space="space-2"] .scene-heading {
+    top: 15px;
+    left: 16px;
+    max-width: 180px;
+  }
+  .scene-shell[data-space="space-2"] .scene-heading h1 {
+    font-size: 21px;
+  }
+  .scene-shell[data-space="space-2"] .scene-heading p,
+  .scene-shell[data-space="space-2"] .scene-heading .eyebrow {
+    display: none;
+  }
+  .scene-shell[data-space="space-2"] .space-switcher {
+    top: 14px;
+    right: 12px;
+    width: 140px;
+    padding: 10px;
+  }
+  .farm-hud {
+    left: 12px;
+    bottom: 74px;
+    width: 245px;
+    max-width: calc(100% - 24px);
+  }
+  .farm-hud-hint {
+    max-width: 220px;
+  }
+}
+.farm-house-select {
+  display: none;
+}
+@media (max-width: 768px) {
+  .scene-shell[data-space="space-2"][data-area="village"]
+    .space-switcher
+    > button {
+    display: none;
+  }
+  .farm-house-select {
+    display: block;
+    width: 100%;
+    font: inherit;
+    font-size: 11px;
+    padding: 8px 5px;
+    border: 1px solid #d7dfc6;
+    border-radius: 7px;
+    background: #f7f8ee;
+    color: #36523b;
+    margin-top: 7px;
+  }
+}

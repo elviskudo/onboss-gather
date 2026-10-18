@@ -420,25 +420,6 @@
       "license": "User supplied for this project; upstream license not provided."
     },
     {
-      "id": "dog",
-      "file": "/assets/farm/dog.png",
-      "source_rect": [
-        578,
-        992,
-        682,
-        1084
-      ],
-      "size": [
-        104,
-        92
-      ],
-      "alpha": true,
-      "pivot": "bottom-center",
-      "filter": "nearest",
-      "source": "user-upload-image-2",
-      "license": "User supplied for this project; upstream license not provided."
-    },
-    {
       "id": "cat",
       "file": "/assets/farm/cat.png",
       "source_rect": [

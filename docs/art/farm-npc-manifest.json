@@ -1,0 +1,57 @@
+{
+  "source": "Original code-authored models in src/FarmAnimals.ts",
+  "license": "Project-authored procedural geometry; no external mesh assets",
+  "axes": {
+    "up": "+Y",
+    "forward": "+Z",
+    "ground_y": 0.665
+  },
+  "species": {
+    "cow": {
+      "count": 3,
+      "height_m": 1.6,
+      "food": "hay"
+    },
+    "sheep": {
+      "count": 4,
+      "height_m": 1.1,
+      "food": "grass"
+    },
+    "cat": {
+      "count": 3,
+      "height_m": 0.8,
+      "food": "cat food"
+    },
+    "chicken": {
+      "count": 6,
+      "height_m": 0.8,
+      "food": "grain"
+    },
+    "duck": {
+      "count": 5,
+      "height_m": 0.75,
+      "food": "grain"
+    }
+  },
+  "states": [
+    "walk",
+    "graze",
+    "player-fed"
+  ],
+  "rig": [
+    "head",
+    "legs",
+    "tail"
+  ],
+  "mesh_quality": "Smooth normals, rigid surfaces batched by material per articulated part",
+  "motion": "Shared deterministic 40-second patrol cycle with grazing; 8-second meal pause with no displacement",
+  "avatar": "Space 2 human body scale 0.78 with increased head proportions; all eight faceless presets retained",
+  "removed": [
+    "dog"
+  ],
+  "verification": [
+    "tests/animals.mjs",
+    "tests/animal-models.mjs",
+    "tests/farm-npcs.spec.ts"
+  ]
+}

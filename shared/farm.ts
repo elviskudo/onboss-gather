@@ -3,8 +3,8 @@ export const FARM_BUILDINGS = [
     asset: "cottage",
     x: -11,
     z: -8,
-    width: 8,
-    height: 7,
+    width: 9,
+    height: 8.8,
     halfX: 3,
     halfZ: 2,
     area: "workspace",
@@ -13,8 +13,8 @@ export const FARM_BUILDINGS = [
     asset: "barn",
     x: 9,
     z: -9,
-    width: 10,
-    height: 8,
+    width: 11,
+    height: 10,
     halfX: 4,
     halfZ: 2.4,
     area: "hall",
@@ -40,7 +40,7 @@ export const FARM_BUILDINGS = [
     area: "lounge",
   },
   { asset: "coop", x: 18, z: -2, width: 5, height: 5, halfX: 1.9, halfZ: 1.5 },
-  { asset: "well", x: -3, z: 0, width: 3, height: 3.5, halfX: 1, halfZ: 1 },
+  { asset: "well", x: -3, z: 0, width: 1.9, height: 2, halfX: 1, halfZ: 1 },
 ] as const;
 export const FARM_TREES = [
   [-22, -17],
@@ -60,5 +60,6 @@ export const FARM_TREES = [
 export const FARM_SOLIDS = [
   ...FARM_BUILDINGS.map((b) => [b.x, b.z, b.halfX, b.halfZ]),
   ...FARM_TREES.map(([x, z]) => [x, z, 0.5, 0.5]),
-  [-18, -2, 2, 0.5],
+  [-6, -17, 6, 0.1],
+  [7, -17, 5, 0.1],
 ];

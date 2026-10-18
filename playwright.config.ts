@@ -6,6 +6,7 @@ export default defineConfig({
     "**/room-invite.spec.ts",
     "**/social.spec.ts",
     "**/revision.spec.ts",
+    "**/farm-npcs.spec.ts",
   ],
   timeout: 90000,
   fullyParallel: false,

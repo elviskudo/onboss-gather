@@ -1,4 +1,12 @@
 import {
+  FARM_ANIMALS,
+  animalAt,
+  nextFeed,
+  FEED_DISTANCE,
+  FEED_DURATION,
+  type FarmFeeds,
+} from "../shared/animals";
+import {
   handleAuth,
   getSession,
   authRequired,
@@ -48,6 +56,7 @@ type Attachment = {
   lastAuthCheck?: number;
   lastSeen?: number;
   founder?: boolean;
+  lastFeed?: number;
 };
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -151,6 +160,7 @@ export default {
 };
 export class Room extends DurableObject<Env> {
   space: SpaceId = "space-1";
+  feeds: FarmFeeds = {};
   locked = false;
   locks: Record<string, boolean> = {};
   history: { id: string; name: string; text: string; at: number }[] = [];
@@ -162,6 +172,7 @@ export class Room extends DurableObject<Env> {
     );
     ctx.blockConcurrencyWhile(async () => {
       this.space = (await ctx.storage.get<SpaceId>("worldSpace")) || "space-1";
+      this.feeds = (await ctx.storage.get<FarmFeeds>("farm-feeds")) || {};
       this.locked = (await ctx.storage.get<boolean>("locked")) ?? false;
       this.locks = (await ctx.storage.get<Record<string, boolean>>(
         "locks",
@@ -388,6 +399,10 @@ export class Room extends DurableObject<Env> {
         id: person.id,
         self: person,
         history: this.history,
+        farm:
+          this.space === "space-2"
+            ? { now: Date.now(), feeds: this.feeds }
+            : undefined,
       }),
     );
     this.sync();
@@ -576,6 +591,50 @@ export class Room extends DurableObject<Env> {
       return;
     }
     if (!m || typeof m !== "object") return;
+    if (m.type === "animal-feed") {
+      const animal = FARM_ANIMALS.find((def) => def.id === m.id);
+      if (this.space !== "space-2" || a.person.area !== "village" || !animal) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: "Hewan ini hanya ada di kebun Space 2.",
+          }),
+        );
+        return;
+      }
+      const position = animalAt(animal, now, this.feeds[animal.id]);
+      if (
+        Math.hypot(position.x - a.person.x, position.z - a.person.z) >
+        FEED_DISTANCE
+      ) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: "Dekati hewan sebelum memberi makan.",
+          }),
+        );
+        return;
+      }
+      if (position.feeding || (a.lastFeed && now - a.lastFeed < 1500)) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: "Tunggu sebentar, hewan masih makan.",
+          }),
+        );
+        return;
+      }
+      this.feeds[animal.id] = nextFeed(
+        this.feeds[animal.id],
+        now,
+        a.person.name,
+      );
+      a.lastFeed = now;
+      ws.serializeAttachment(a);
+      await this.ctx.storage.put("farm-feeds", this.feeds);
+      this.broadcast({ type: "farm", now, feeds: this.feeds });
+      return;
+    }
     if (typeof m.type === "string" && m.type.startsWith("board-")) {
       await this.updateBoard(ws, a, m);
       return;
