@@ -13,6 +13,7 @@ export type Person = {
   z: number;
   mic: boolean;
   camera: boolean;
+  screenSharing?: boolean;
   meeting: boolean;
   host: boolean;
 };

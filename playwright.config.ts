@@ -5,6 +5,7 @@ export default defineConfig({
     "**/founder.spec.ts",
     "**/room-invite.spec.ts",
     "**/social.spec.ts",
+    "**/screen-share.spec.ts",
     "**/revision.spec.ts",
     "**/farm-npcs.spec.ts",
     "**/farm-buildings.spec.ts",

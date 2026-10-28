@@ -1,6 +1,6 @@
 # Hallstatt Social
 
-Dunia sosial 3D alpine dengan UI premium, geometri orisinal, avatar, chat realtime, proximity audio, dan meeting kecil.
+Dunia sosial 3D alpine dengan UI premium, geometri orisinal, avatar, chat realtime, proximity audio, meeting kecil, share screen, dan papan tulis bersama.
 
 Rilis, bukti verifikasi, dan gerbang yang belum terpenuhi: [RELEASE.md](RELEASE.md).
 
@@ -23,6 +23,15 @@ npm test
 
 Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau gunakan executable Chromium yang dipasang Playwright. Tes menjalankan Worker lokal bila belum aktif. `npm run build:preview` menghasilkan preview statis yang secara eksplisit menonaktifkan koneksi ruang; jangan gunakan build tersebut untuk deployment realtime.
 
+Untuk menguji share screen dan undangan papan tulis dengan dua peserta pada Worker fixture terisolasi:
+
+```sh
+npm run build
+npx playwright test -c playwright.founder.config.ts tests/screen-share.spec.ts
+```
+
+Kelima skenario meliputi kamera dan layar bersamaan, pembatalan pemilih sumber, penghentian saat peserta keluar, undangan dan edit papan bersama, dua layar meeting dengan mic aktif, serta batas ukuran signaling. Tes mengganti pemilih layar sistem dengan stream canvas; WebSocket, koneksi WebRTC, dan decoding video remote tetap nyata. Pemilih sumber native dan media lintas jaringan belum diverifikasi.
+
 ## Implementasi saat ini
 
 - Delapan avatar manusia tanpa fitur wajah: cowok, perempuan berhijab, anak, remaja, dewasa berjenggot hitam, orang tua berjenggot putih, cadar, dan anak berhijab. Profil dapat diklik, tersedia 24 warna baju, dan kamera mengikuti avatar.
@@ -30,7 +39,9 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 - Enam bangunan Harvest Farm memakai mesh 3D proporsional: cottage, barn, greenhouse, workshop, kandang ayam, dan sumur; empat rumah tetap dapat dimasuki untuk meeting/papan tulis.
 - Pemilih Space 1 (Hallstatt) dan Space 2 (Harvest Farm). Space 2 memakai aset atlas unggahan pengguna; peserta, chat, meeting, dan papan tulis terpisah per room/space. Tautan undangan membawa room dan space melewati login Google.
 - Satu kehadiran per akun dalam room/space: koneksi baru menggantikan koneksi lama dengan ID avatar tetap. Tab lama berhenti reconnect otomatis; tombol Retry memindahkan koneksi kembali. Presence idle dibersihkan lewat lease/heartbeat.
-- Papan tulis tiap rumah mendukung pena, penghapus per coretan, hapus catatan, dan pembersihan seluruh papan oleh host atau founder dengan konfirmasi.
+- Papan tulis bersama tersedia di desa dan tiap rumah: pena, penghapus per coretan, hapus catatan, serta pembersihan oleh host atau founder dengan konfirmasi. Tombol Whiteboard membuka papan area saat ini dan mengirim undangan kepada teman dalam jangkauan percakapan atau meeting; penerima memilih Buka papan bersama. Papan tersimpan per area, bukan papan privat per pasangan.
+- Share screen tersedia saat bertemu teman dalam jangkauan percakapan atau meeting. Pengguna memilih tab, jendela, atau layar lewat dialog browser; layar tampil terpisah dari kamera, bisa diperbesar, dan dapat dihentikan melalui aplikasi atau browser. Capture berhenti saat pindah area/channel, keluar, koneksi terputus, atau peserta terakhir meninggalkan percakapan. Berbagi dimulai ulang secara manual. Audio sistem tidak ditangkap; percakapan memakai mic. Pengirim memerlukan browser yang mendukung `getDisplayMedia`.
+- Di dalam rumah, tombol Share screen tersedia di bilah interaksi antara Bangun/Duduk & meeting dan Papan tulis. Pemilih sumber menyertakan seluruh layar, jendela, dan tab Chrome, termasuk tab aplikasi saat ini; tombol berubah menjadi Stop sharing selama berbagi.
 - Empat interior cutaway: working space, community hall, lakeside house, creative studio; meeting dan lock dipisahkan per interior. Dapur terbuka, sungai berjembatan dan kolam dengan semburan air mancur animasi. Collision bangunan, pohon, lampu, dapur dan furnitur berlaku di klien serta server.
 - Google OpenID Connect authorization code + PKCE, verifikasi JWKS, sesi HttpOnly 8 jam, serta profil permanen dalam AuthStore Durable Object. Di domain deployment, akses multiplayer/media wajib login; anonim hanya di localhost untuk pengujian. OAuth produksi telah dikonfigurasi; tes otomatis memakai identitas fixture lokal, sedangkan pemilihan akun dan consent Google tetap dilakukan pengguna.
 - Desa 3D halus bergaya desa pertanian hangat dengan masjid tepi danau, kubah, menara, serta ornamen bulan sabit sesuai preferensi pengguna.
@@ -43,7 +54,7 @@ Pengujian menggunakan Chrome di macOS. Di Linux/CI, atur `CHROME_PATH` atau guna
 - WASD/panah, klik tanah, navigasi landmark, orbit/zoom, kontrol sentuh, kualitas grafis ringan, layout responsif.
 - PWA manifest dan service worker dengan halaman offline; sesi sosial membutuhkan koneksi. Aplikasi belum menyimpan seluruh shell untuk penggunaan offline.
 - Pemulihan koneksi memakai satu socket aktif, timeout admission 12 detik, backoff terbatas, retry manual yang membatalkan timer lama, dan respons online/offline browser. Heartbeat native Durable Object memeriksa sambungan macet tanpa membangunkan ruang idle. Setelah reconnect, posisi diselaraskan ke posisi server sebelumnya bila masih tersedia, atau spawn server, dan media kembali mati.
-- Validasi nama/room/message/position, batas 16 KiB pesan, rate limit per sesi 35 pesan/detik, same-origin WebSocket, CSP dan header keamanan.
+- Validasi nama/room/message/position, batas 16 KiB pesan biasa dan 64 KiB signaling kamera/layar, rate limit per sesi 35 pesan/detik, same-origin WebSocket, CSP dan header keamanan.
 
 ## Deployment penuh ke Cloudflare
 
@@ -54,7 +65,7 @@ npm run deploy
 
 `wrangler.jsonc` mendefinisikan Worker, static assets, binding ROOMS/AUTH, dan migrasi Durable Object. Jangan deploy build preview; `npm run deploy` membangun ulang mode penuh. Gunakan HTTPS untuk media dan undangan antarperangkat. `npx wrangler tail` untuk diagnosis. Kunci versi ada pada package-lock.json.
 
-Deployment produksi berjalan di https://hallstatt-social.elviskudo.workers.dev; riwayat versi ada di [RELEASE.md](RELEASE.md). Multiplayer/media di domain ini wajib login Google, jadi pasang secrets OAuth sebelum mengundang pengguna.
+Deployment produksi berjalan di https://hallstatt-social.elviskudo.workers.dev; riwayat versi ada di [RELEASE.md](RELEASE.md). Share screen dan undangan papan tulis sudah tersedia di produksi sejak 28 Oktober 2026. Setelah pembaruan, semua peserta perlu memuat ulang tab agar memakai client terbaru. Multiplayer/media di domain ini wajib login Google; konfigurasi OAuth produksi sudah terpasang. Deployment baru pada akun atau domain lain memerlukan secrets OAuth sendiri.
 
 Panduan konfigurasi Google lengkap: [docs/cloudflare-google-setup.md](docs/cloudflare-google-setup.md). Pasang GOOGLE_CLIENT_ID dan GOOGLE_CLIENT_SECRET sebagai Wrangler secrets setelah membuat OAuth Client Web Application dengan callback `/api/auth/callback`.
 
@@ -91,6 +102,8 @@ Preview Sites bersifat privat dan hanya eksplorasi statis; frontend preview tida
 - `src/App.tsx`: UI, dialog, chat, meeting dan host controls.
 - `src/useRoom.ts`: WebSocket, presence, reconnect dan signaling.
 - `src/useMedia.ts`: media devices dan koneksi WebRTC.
+- `src/ScreenShare.tsx`: preview dan layar remote, pemilih layar, minimize dan fullscreen.
+- `src/Whiteboard.tsx`: editor papan tulis bersama per area.
 - `server/index.ts`: Worker routing dan Durable Object.
 - `server/auth.ts`: Google login, verifikasi token, sesi dan profil persisten.
 - `shared/spaces.ts`: preset avatar, interior, collision dan batas channel audio.
@@ -107,4 +120,6 @@ The live Worker sends anonymous visitors to `/login` before loading the village.
 
 ### Social interactions
 
-Use **E** near another participant to invite proximity voice or a meeting in a house. The recipient accepts/declines; microphone permission stays explicit. **People → profile → Temui** locates a participant across houses. Inside a house, **Duduk & meeting**, **E / Bangun**, and **Papan tulis** control seating and collaboration. Each house has an independent persisted board supporting strokes and notes; only the room host can clear it, with confirmation. Collision and seat occupancy are enforced by the server as well as the client. See the setup guide for capacity and media-verification limits.
+Use **E** near another participant to invite proximity voice or a meeting in a house. The recipient accepts/declines; microphone permission stays explicit. **People → profile → Temui** locates a participant across houses. Inside a house, the interaction bar places **Share screen** between **Duduk & meeting / Bangun** and **Papan tulis**. Sharing requires another eligible participant in the conversation or meeting. Chrome's picker offers an entire screen, a window, or a tab, including the current tab; camera and screen remain separate, and conversation audio uses the microphone.
+
+The village and each house have an independent persisted board supporting strokes and notes. **Whiteboard** opens the current area's board and invites eligible participants to open it together; the invitation expires after 30 seconds. The room host or verified founder can clear a board with confirmation. Collision and seat occupancy are enforced by the server as well as the client. See the setup guide for capacity and media-verification limits.

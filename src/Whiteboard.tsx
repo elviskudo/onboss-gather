@@ -9,12 +9,14 @@ export function Whiteboard({
   host,
   send,
   onClose,
+  onShare,
 }: {
   board: Board | null;
   area: AreaId;
   host: boolean;
   send: (v: unknown) => boolean;
   onClose: () => void;
+  onShare: () => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     draft = useRef<BoardStroke | null>(null);
@@ -65,13 +67,14 @@ export function Whiteboard({
         <header>
           <div>
             <h2 id="whiteboard-title">Papan tulis bersama</h2>
-            <p>Coretan dan catatan tersimpan untuk rumah ini.</p>
+            <p>Coretan dan catatan tersimpan untuk area ini.</p>
           </div>
           <button aria-label="Tutup papan tulis" onClick={onClose}>
             <X size={20} />
           </button>
         </header>
         <div className="board-tools">
+          <button onClick={onShare}>Bagikan papan tulis</button>
           <button
             aria-label="Mode pena"
             aria-pressed={!erase}

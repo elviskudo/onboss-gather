@@ -437,6 +437,10 @@ export class Room extends DurableObject<Env> {
     Object.assign(a.person, {
       area,
       meeting,
+      screenSharing:
+        a.person.area !== area || a.person.meeting !== meeting
+          ? false
+          : a.person.screenSharing,
       seat: seat?.id,
       x: point.x,
       z: point.z,
@@ -448,7 +452,6 @@ export class Room extends DurableObject<Env> {
   }
   async updateBoard(ws: WebSocket, a: Attachment, m: any) {
     const area = a.person.area || "village";
-    if (area === "village") return;
     if (m.type === "board-open") {
       ws.send(
         JSON.stringify({
@@ -552,7 +555,7 @@ export class Room extends DurableObject<Env> {
   }
   async receive(ws: WebSocket, message: string | ArrayBuffer) {
     if (ws.readyState !== WebSocket.OPEN) return;
-    if (typeof message !== "string" || message.length > 16384) {
+    if (typeof message !== "string" || message.length > 65536) {
       ws.close(1009, "Message too large");
       return;
     }
@@ -588,6 +591,12 @@ export class Room extends DurableObject<Env> {
     try {
       m = JSON.parse(message);
     } catch {
+      if (message.length > 16384) ws.close(1009, "Message too large");
+      return;
+    }
+    // Camera and screen SDP can contain several media sections and codec lists.
+    if (message.length > 16384 && m?.type !== "signal") {
+      ws.close(1009, "Message too large");
       return;
     }
     if (!m || typeof m !== "object") return;
@@ -635,7 +644,11 @@ export class Room extends DurableObject<Env> {
       this.broadcast({ type: "farm", now, feeds: this.feeds });
       return;
     }
-    if (typeof m.type === "string" && m.type.startsWith("board-")) {
+    if (
+      typeof m.type === "string" &&
+      m.type.startsWith("board-") &&
+      m.type !== "board-share"
+    ) {
       await this.updateBoard(ws, a, m);
       return;
     }
@@ -861,6 +874,7 @@ export class Room extends DurableObject<Env> {
         if (!validArea(m.area)) return;
         a.person.area = m.area;
         a.person.meeting = false;
+        a.person.screenSharing = false;
         a.person.seat = undefined;
         Object.assign(
           a.person,
@@ -882,6 +896,7 @@ export class Room extends DurableObject<Env> {
       case "navigate":
         a.person.area = "village";
         a.person.meeting = false;
+        a.person.screenSharing = false;
         a.person.seat = undefined;
         if (Number.isInteger(m.place) && m.place >= 0 && m.place < 4) {
           const points =
@@ -945,6 +960,30 @@ export class Room extends DurableObject<Env> {
       case "status":
         a.person.mic = m.mic === true;
         a.person.camera = m.camera === true;
+        a.person.screenSharing = m.screenSharing === true;
+        break;
+      case "board-share":
+        for (const peer of this.sockets()) {
+          const recipient = (peer.deserializeAttachment() as Attachment).person;
+          if (
+            recipient.id !== a.person.id &&
+            sameAudioSpace(a.person, recipient) &&
+            (a.person.meeting
+              ? recipient.meeting
+              : !recipient.meeting &&
+                Math.hypot(a.person.x - recipient.x, a.person.z - recipient.z) <
+                  12)
+          )
+            peer.send(
+              JSON.stringify({
+                type: "board-share",
+                from: a.person.id,
+                name: a.person.name,
+                area: a.person.area || "village",
+                expires: now + 30000,
+              }),
+            );
+        }
         break;
       case "chat":
         if (typeof m.text === "string" && m.text.trim()) {
@@ -978,6 +1017,7 @@ export class Room extends DurableObject<Env> {
             this.env.AUTH.idFromName("identity"),
           ).meeting();
         a.person.meeting = m.join === true;
+        a.person.screenSharing = false;
         break;
       case "lock":
         if (a.person.host) {

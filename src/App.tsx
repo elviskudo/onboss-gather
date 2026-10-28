@@ -29,6 +29,8 @@ import {
   Minus,
   MoreHorizontal,
   Mountain,
+  MonitorUp,
+  PanelsTopLeft,
   Navigation,
   Plus,
   RotateCw,
@@ -48,6 +50,7 @@ import {
 import { World, type WorldHandle } from "./World";
 import { WORLD_SPACES, type SpaceId } from "../shared/space";
 import { Whiteboard } from "./Whiteboard";
+import { ScreenShare, type SharedScreen } from "./ScreenShare";
 import { AvatarPortrait } from "./AvatarPortrait";
 import { GoogleSignIn } from "./GoogleSignIn";
 import { roomFromUrl, spaceFromUrl, type SessionInfo } from "./session";
@@ -233,6 +236,19 @@ export default function App({
     notify,
   );
   const connected = room.status === "connected";
+  const conversationPeople = room.people.filter((p) => canHear(self, p));
+  const sharedScreens: SharedScreen[] = conversationPeople.flatMap((p) =>
+    p.screenSharing && media.remoteScreens[p.id]
+      ? [{ id: p.id, name: p.name, stream: media.remoteScreens[p.id] }]
+      : [],
+  );
+  if (media.screen)
+    sharedScreens.push({
+      id: self.id,
+      name,
+      stream: media.screen,
+      local: true,
+    });
   const participants = connected ? room.people : [self];
   const inMeeting = own?.meeting === true;
   const meetingPeople = room.people.filter(
@@ -386,9 +402,30 @@ export default function App({
     return () => window.removeEventListener("keydown", key);
   }, [nearest?.id, own?.seat, connected, modal, socialOpen, boardOpen]);
   useEffect(() => {
-    if (connected && area !== "village") room.send({ type: "board-open" });
-    else setBoardOpen(false);
+    setBoardOpen(false);
+    room.dismissBoardShare();
+    if (connected) room.send({ type: "board-open" });
   }, [connected, area, room.send]);
+  useEffect(() => {
+    if (!room.boardShare) return;
+    const timer = setTimeout(
+      () => room.dismissBoardShare(),
+      Math.max(0, room.boardShare.expires - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [room.boardShare]);
+  function shareBoard() {
+    setBoardOpen(true);
+    if (!conversationPeople.length) {
+      notify(
+        "Papan siap dipakai. Dekati teman atau masuk meeting untuk membagikannya.",
+      );
+      return;
+    }
+    if (room.send({ type: "board-share" }))
+      notify("Ajakan membuka papan tulis dikirim ke peserta percakapan.");
+    else notify("Belum tersambung ke room.");
+  }
   useEffect(() => {
     if (!room.invitation) return;
     const timer = setTimeout(
@@ -421,6 +458,7 @@ export default function App({
     setModal("profile");
   }
   function enterSpace(id: string) {
+    media.stopScreen();
     const next = id as AreaId;
     setArea(next);
     setMeeting(false);
@@ -465,6 +503,7 @@ export default function App({
     room.send({ type: "move", x, z });
   }
   function go(i: number) {
+    media.stopScreen();
     setArea("village");
     setPlace(i);
     const p = places[i];
@@ -504,6 +543,7 @@ export default function App({
       setModal("join");
       return;
     }
+    media.stopScreen();
     if (inMeeting) {
       room.send({ type: "meeting", join: false });
       setMeeting(false);
@@ -1239,6 +1279,9 @@ export default function App({
               </div>
             </div>
           )}
+          {connected && sharedScreens.length > 0 && (
+            <ScreenShare screens={sharedScreens} onStop={media.stopScreen} />
+          )}
         </main>
         <footer className="controlbar">
           <div className="presence">
@@ -1281,6 +1324,41 @@ export default function App({
               <span>{media.camera ? "Camera on" : "Camera off"}</span>
             </button>
             <span className="control-separator" />
+            <button
+              className={"control-button " + (media.screen ? "enabled" : "")}
+              disabled={
+                !connected ||
+                (!media.screen &&
+                  !media.screenPending &&
+                  !conversationPeople.length)
+              }
+              aria-label={
+                media.screen || media.screenPending
+                  ? "Hentikan berbagi layar"
+                  : "Bagikan layar"
+              }
+              aria-pressed={!!media.screen}
+              title="Bagikan layar dengan teman di dekatmu atau peserta meeting"
+              onClick={() => void media.toggleScreen()}
+            >
+              <MonitorUp size={20} />
+              <span>
+                {media.screen
+                  ? "Stop layar"
+                  : media.screenPending
+                    ? "Memilih…"
+                    : "Share screen"}
+              </span>
+            </button>
+            <button
+              className={"control-button " + (boardOpen ? "enabled" : "")}
+              disabled={!connected}
+              aria-label="Bagikan papan tulis"
+              onClick={shareBoard}
+            >
+              <PanelsTopLeft size={20} />
+              <span>Whiteboard</span>
+            </button>
             <button
               className={"control-button " + (inMeeting ? "enabled" : "")}
               onClick={() =>
@@ -1399,6 +1477,29 @@ export default function App({
               >
                 {own?.seat ? "Bangun" : "Duduk & meeting"}
               </button>
+              <button
+                className="quickbar-screen-share"
+                disabled={
+                  !media.screen &&
+                  !media.screenPending &&
+                  !conversationPeople.length
+                }
+                aria-label={
+                  media.screen || media.screenPending
+                    ? "Hentikan share screen"
+                    : "Share screen"
+                }
+                aria-pressed={!!media.screen}
+                title="Bagikan seluruh layar, jendela, atau tab Chrome"
+                onClick={() => void media.toggleScreen()}
+              >
+                <MonitorUp size={16} />
+                {media.screen
+                  ? "Stop sharing"
+                  : media.screenPending
+                    ? "Memilih…"
+                    : "Share screen"}
+              </button>
               <button onClick={() => setBoardOpen(true)}>Papan tulis</button>
             </>
           )}
@@ -1459,6 +1560,32 @@ export default function App({
           </div>
         </aside>
       )}
+      {room.boardShare &&
+        connected &&
+        room.boardShare.area === area &&
+        conversationPeople.some((p) => p.id === room.boardShare?.from) && (
+          <aside
+            className="activity-invitation"
+            role="region"
+            aria-label="Undangan papan tulis"
+          >
+            <strong>{room.boardShare.name} membagikan papan tulis</strong>
+            <p>
+              Buka papan yang sama untuk menggambar dan menulis catatan bersama.
+            </p>
+            <div>
+              <button
+                onClick={() => {
+                  setBoardOpen(true);
+                  room.dismissBoardShare();
+                }}
+              >
+                Buka papan bersama
+              </button>
+              <button onClick={() => room.dismissBoardShare()}>Nanti</button>
+            </div>
+          </aside>
+        )}
       {socialOpen && (
         <div className="modal-backdrop" onClick={() => setSocialOpen(false)}>
           <section
@@ -1488,6 +1615,28 @@ export default function App({
             </p>
             {socialPerson && (
               <>
+                <div className="house-actions">
+                  <button
+                    className="subtle-button"
+                    disabled={!canHear(self, socialPerson)}
+                    onClick={() => {
+                      setSocialOpen(false);
+                      void media.toggleScreen();
+                    }}
+                  >
+                    <MonitorUp size={16} /> Bagikan layar
+                  </button>
+                  <button
+                    className="subtle-button"
+                    disabled={!canHear(self, socialPerson)}
+                    onClick={() => {
+                      setSocialOpen(false);
+                      shareBoard();
+                    }}
+                  >
+                    <PanelsTopLeft size={16} /> Bagikan papan tulis
+                  </button>
+                </div>
                 <button
                   className="primary-button"
                   disabled={!canTalk}
@@ -1546,13 +1695,14 @@ export default function App({
           </section>
         </div>
       )}
-      {boardOpen && connected && area !== "village" && (
+      {boardOpen && connected && (
         <Whiteboard
           board={room.board}
           area={area}
           host={self.host || auth?.user?.founder === true}
           send={room.send}
           onClose={() => setBoardOpen(false)}
+          onShare={shareBoard}
         />
       )}
       {Object.entries(media.remote).map(([pid, stream]) => {

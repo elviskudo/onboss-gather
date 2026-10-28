@@ -1363,6 +1363,100 @@ kbd {
   color: #fff9e5;
   font-size: 8px;
 }
+.screen-share-panel {
+  position: absolute;
+  top: 25px;
+  right: 24px;
+  z-index: 10;
+  width: min(680px, calc(100% - 270px));
+  overflow: hidden;
+  border: 1px solid #d4dfc8;
+  border-radius: 14px;
+  background: #fbfcf5;
+  box-shadow: 0 14px 40px #294d3e30;
+}
+.screen-share-panel header,
+.screen-share-panel footer,
+.screen-share-panel nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  color: #36553b;
+  font-size: 11px;
+}
+.screen-share-panel header strong {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.screen-share-panel button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 6px;
+  color: #36553b;
+  font: inherit;
+}
+.screen-share-panel button:hover,
+.screen-share-panel button[aria-pressed="true"] {
+  background: #e1ead6;
+}
+.screen-share-panel video {
+  display: block;
+  width: 100%;
+  max-height: 43vh;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #1b2b25;
+}
+.screen-share-panel footer {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.screen-share-panel nav {
+  overflow-x: auto;
+  border-top: 1px solid #d4dfc8;
+}
+.screen-share-panel nav button {
+  flex-shrink: 0;
+}
+.screen-share-panel.collapsed {
+  width: min(320px, calc(100% - 48px));
+}
+.scene-shell:has(.screen-share-panel:not(.collapsed)) .meeting-overlay {
+  top: auto;
+  bottom: 78px;
+  width: 220px;
+}
+@media (max-width: 768px) {
+  .screen-share-panel {
+    top: 100px;
+    right: 12px;
+    width: calc(100% - 24px);
+  }
+  .screen-share-panel video {
+    max-height: 30vh;
+  }
+  .screen-share-panel header,
+  .screen-share-panel footer {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  .scene-shell:has(.screen-share-panel:not(.collapsed)) .meeting-overlay {
+    width: 160px;
+    bottom: 105px;
+    right: 12px;
+  }
+  .call-controls {
+    overflow-x: auto;
+  }
+  .call-controls > button {
+    flex-shrink: 0;
+  }
+}
 .meeting-footer {
   display: flex;
   gap: 10px;
@@ -1733,12 +1827,14 @@ kbd {
   }
   .call-controls {
     width: 100%;
-    justify-content: center;
-    gap: 9px;
+    min-width: 0;
+    justify-content: safe center;
+    gap: 3px;
   }
   .control-button {
     height: 50px;
-    min-width: 41px;
+    min-width: 38px;
+    padding: 2px 3px;
   }
   .control-button svg {
     width: 19px;
@@ -1747,7 +1843,7 @@ kbd {
     font-size: 7px;
   }
   .control-separator {
-    margin: 0 2px;
+    display: none;
   }
   .enter-button {
     font-size: 9px;
@@ -2206,6 +2302,10 @@ kbd {
 }
 .social-quickbar button:hover {
   background: #e9efda;
+}
+.social-quickbar .quickbar-screen-share[aria-pressed="true"] {
+  background: #dce8c8;
+  color: #294d3e;
 }
 .social-quickbar kbd {
   padding: 3px 6px;
@@ -2743,5 +2843,29 @@ kbd {
     background: #f7f8ee;
     color: #36523b;
     margin-top: 7px;
+  }
+}
+.scene-shell:has(.screen-share-panel) .space-switcher {
+  left: 24px;
+  right: auto;
+  top: 270px;
+}
+@media (max-width: 768px) {
+  .scene-shell:has(.screen-share-panel) .space-switcher {
+    top: 8px;
+    left: 12px;
+    width: calc(100% - 24px);
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    padding: 8px;
+  }
+  .scene-shell:has(.screen-share-panel) .space-switcher strong,
+  .scene-shell:has(.screen-share-panel) .space-switcher span {
+    display: none;
+  }
+  .scene-shell:has(.screen-share-panel) .space-switcher button {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 }

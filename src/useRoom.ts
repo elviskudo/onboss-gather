@@ -16,6 +16,12 @@ export function useRoom(onNotice: (s: string) => void) {
   const [farmFeeds, setFarmFeeds] = useState<FarmFeeds>({});
   const [farmClockOffset, setFarmClockOffset] = useState(0);
   const [board, setBoard] = useState<Board | null>(null);
+  const [boardShare, setBoardShare] = useState<{
+    from: string;
+    name: string;
+    area: AreaId;
+    expires: number;
+  } | null>(null);
   const [invitation, setInvitation] = useState<ActivityInvite | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,8 +47,15 @@ export function useRoom(onNotice: (s: string) => void) {
     space: SpaceId;
   } | null>(null);
   const onSignal = useRef<(from: string, payload: any) => void>(() => {});
+  const queuedSignals = useRef<{ from: string; payload: any }[]>([]);
+  const [signalRevision, setSignalRevision] = useState(0);
   const notice = useRef(onNotice);
   notice.current = onNotice;
+  useEffect(() => {
+    const pending = queuedSignals.current.splice(0);
+    if (live.current)
+      for (const event of pending) onSignal.current(event.from, event.payload);
+  }, [signalRevision]);
 
   // Retire before closing: queued events from the previous connection cannot
   // change the new session, schedule another retry, or add a duplicate avatar.
@@ -54,6 +67,7 @@ export function useRoom(onNotice: (s: string) => void) {
     const ws = socket.current;
     socket.current = null;
     live.current = false;
+    queuedSignals.current = [];
     if (ws) {
       ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
       try {
@@ -108,6 +122,7 @@ export function useRoom(onNotice: (s: string) => void) {
         setPeople([]);
         setId("local");
         setLocked(false);
+        setBoardShare(null);
         if (code === 4004) {
           intent.current = false;
           setStatus("offline");
@@ -210,6 +225,13 @@ export function useRoom(onNotice: (s: string) => void) {
           return;
         }
         if (!live.current) return;
+        if (
+          m.type === "board-share" &&
+          typeof m.from === "string" &&
+          typeof m.name === "string" &&
+          m.expires > Date.now()
+        )
+          setBoardShare(m);
         if (m.type === "farm" && m.feeds && Number.isFinite(m.now)) {
           setFarmFeeds(m.feeds);
           setFarmClockOffset(m.now - Date.now());
@@ -258,8 +280,14 @@ export function useRoom(onNotice: (s: string) => void) {
           );
         if (m.type === "error" && typeof m.message === "string")
           notice.current(m.message);
-        if (m.type === "signal" && typeof m.from === "string")
-          onSignal.current(m.from, { ...m.payload, connection: m.connection });
+        if (m.type === "signal" && typeof m.from === "string") {
+          // Render the latest presence epochs before media accepts this packet.
+          queuedSignals.current.push({
+            from: m.from,
+            payload: { ...m.payload, connection: m.connection },
+          });
+          setSignalRevision((revision) => revision + 1);
+        }
       };
       ws.onclose = (e) => disconnect(e.code);
       ws.onerror = () => disconnect();
@@ -280,6 +308,8 @@ export function useRoom(onNotice: (s: string) => void) {
       setPeople([]);
       setId("local");
       setLocked(false);
+      setBoard(null);
+      setBoardShare(null);
       identity.current = { name, color, room, avatar, bio, space };
       intent.current = true;
       attempts.current = 0;
@@ -300,6 +330,7 @@ export function useRoom(onNotice: (s: string) => void) {
     setFarmFeeds({});
     setFarmClockOffset(0);
     setBoard(null);
+    setBoardShare(null);
     setInvitation(null);
     setLocked(false);
     setSpawn(null);
@@ -326,6 +357,7 @@ export function useRoom(onNotice: (s: string) => void) {
       setPeople([]);
       setId("local");
       setLocked(false);
+      setBoardShare(null);
       setStatus("reconnecting");
     };
     const resume = () => {
@@ -367,6 +399,8 @@ export function useRoom(onNotice: (s: string) => void) {
     farmFeeds,
     farmClockOffset,
     board,
+    boardShare,
+    dismissBoardShare: () => setBoardShare(null),
     invitation,
     dismissInvitation: () => setInvitation(null),
     updateProfile,
